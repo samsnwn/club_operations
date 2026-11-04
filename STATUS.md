@@ -1,8 +1,8 @@
 # STATUS
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
-## Stage: Planning → Phase 0.5 discovery (pre-code)
+## Stage: Frontend scaffold (Vite PWA baseline) — Phase 0.5 discovery still blocking backend
 
 ## Snapshot
 
@@ -11,7 +11,7 @@ Last updated: 2026-11-04
 | Product plan | Complete — full plan in `README.md`, including Phase 0.5 Invoice Ingestion Quick Win |
 | Owner questions | Not yet answered — Phase 0 (discovery) and Phase 0.5 questions outstanding |
 | Backend code | Placeholder only (`.gitkeep`) |
-| Frontend code | Placeholder only (`.gitkeep`) |
+| Frontend code | React + TypeScript + Vite scaffold with PWA plugin configured (pnpm); placeholder UI, no real modules yet |
 | Infra (Docker/HTTPS) | Placeholder only (`.gitkeep`) |
 | Hosting hardware | Unknown — pending Phase 0 owner answers |
 
@@ -21,17 +21,19 @@ Last updated: 2026-11-04
 - Phase 0.5 — Invoice Ingestion Quick Win defined and expanded (email + Google Drive ingestion, OCR decision, review queue with trust levels, Google Sheets API vs. local `.xlsx`, architecture notes, owner questions).
 - Initial repository skeleton and planning docs committed (docs/architecture.md, docs/milestones.md, docs/next-steps.md).
 - AGENTS.md, STATUS.md, CHANGE_LOG.md added.
+- React + TypeScript + Vite scaffold created in `frontend/` (pnpm as package manager).
+- PWA baseline configured: `vite-plugin-pwa` dependency added and `VitePWA` set up in `vite.config.ts` (autoUpdate registration, Web App manifest with icon set).
 
 ## In progress / uncommitted
 
-- `README.md` has uncommitted changes (currently 818 insertions vs. `HEAD`): the plan was expanded and moved into README.md — **commit pending**.
+- None — working tree clean; all scaffold and PWA work committed and pushed to `main`.
 
 ## Next steps (ordered)
 
-1. Commit the outstanding `README.md` plan expansion.
-2. Ask the owner the Phase 0.5 question set (8 questions, README §Phase 0.5) — highest priority, it unblocks the quick win.
-3. Ask the owner the broader Phase 0 discovery questions (module workflows, hardware, hosting, access, users).
-4. Based on answers, scaffold the Phase 0.5 invoice-ingestion service (independent Python service; mechanisms decided by the sheet-location + email-access answers).
+1. Ask the owner the Phase 0.5 question set (8 questions, README §Phase 0.5) — highest priority, it unblocks the quick win.
+2. Ask the owner the broader Phase 0 discovery questions (module workflows, hardware, hosting, access, users).
+3. Replace PWA placeholder manifest icons/branding (favicon, apple-touch-icon, maskable icon) with real assets.
+4. Based on owner answers, scaffold the Phase 0.5 invoice-ingestion service (independent Python service; mechanisms decided by the sheet-location + email-access answers).
 5. Then proceed to Phase 1 foundation per `docs/next-steps.md`.
 
 ## Open questions blocking Phase 0.5
