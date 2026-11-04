@@ -1,0 +1,9 @@
+# Node
+node_modules/
+
+# Python/OS artifacts living outside backend/ and frontend/ ignores
+.DS_Store
+
+# Environment files — never commit credentials
+.env
+.env.*
