@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 - Frontend CI pipeline `.github/workflows/frontend.yml`: `pnpm install --frozen-lockfile` → `pnpm run lint` → `pnpm run build` (pushes to `main` and PRs touching `frontend/`).
 - Frontend TypeScript pinned to `~5.9.3` (from the template's `~7.0.2`); `typescript-eslint` currently supports TS < 6.1, so lint was failing on the template pin. Revisit when typescript-eslint adds TS 7 support.
 
+- Prettier formatting added at the repository root, mirroring the owner's NotAnotherCards project: `.prettierrc` (`singleQuote`, `trailingComma: "all"`) and `.prettierignore`; root `pnpm format` / `pnpm format:check` scripts over `**/*.{ts,tsx,mts,mjs,js,cjs,cts}`; template TS files reformatted; formatting check as a CI job in `frontend.yml`.
+
 ## [2026-11-04]
 
 ### Added
