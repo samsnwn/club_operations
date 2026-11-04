@@ -55,6 +55,14 @@ pnpm run dev
 pnpm run build
 ```
 
+Formatting (Prettier, run from the repository root; CI checks formatting):
+
+```bash
+pnpm install
+pnpm format          # write formatting
+pnpm format:check    # verify formatting (same check CI runs)
+```
+
 ## Conventions
 
 - **Language:** user-facing and planning text in English; keep the plan's spelling style (British: "organise", "centralise").
