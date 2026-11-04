@@ -12,7 +12,7 @@ Last updated: 2026-11-05
 | Owner questions | Not yet answered — Phase 0 (discovery) and Phase 0.5 questions outstanding |
 | Backend code | FastAPI scaffold (uv): `/api/v1/health` with DB round-trip check, SQLAlchemy 2.0 settings/session, Alembic wired to app settings with empty baseline migration; no models yet |
 | Frontend code | React + TypeScript + Vite scaffold with PWA plugin configured (pnpm); placeholder UI, no real modules yet |
-| CI | GitHub Actions: `backend.yml` (uv sync → alembic upgrade → pytest), `frontend.yml` (pnpm lint + build, and root-level Prettier `format:check`) |
+| CI | Single GitHub Actions workflow `ci.yml`: Prettier `format:check`, backend (uv sync → alembic upgrade → pytest), frontend (pnpm lint + build) — runs as one check on every push to `main` and PR |
 | Formatting | Prettier at the repo root (`pnpm format` / `pnpm format:check`, same config + CI check as the owner's NotAnotherCards project) |
 | Infra (Docker/HTTPS) | Placeholder only (`.gitkeep`) |
 | Hosting hardware | Unknown — pending Phase 0 owner answers |

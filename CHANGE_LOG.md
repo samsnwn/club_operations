@@ -16,8 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 ### Added
 - FastAPI backend scaffold in `backend/` (uv-managed, Python ≥3.12): app factory, versioned router under `/api/v1/`, health endpoint with a SQLite round-trip check (SQLAlchemy 2.0), pydantic-settings config (`.env` gitignored), pytest suite, `backend/README.md`.
 - Alembic migrations wired to application settings via `app.core.config`; empty baseline migration created and applied.
-- CI pipeline `.github/workflows/backend.yml`: `uv sync` → `uv run alembic upgrade head` → `uv run pytest` (pushes to `main` and PRs touching `backend/`).
-- Frontend CI pipeline `.github/workflows/frontend.yml`: `pnpm install --frozen-lockfile` → `pnpm run lint` → `pnpm run build` (pushes to `main` and PRs touching `frontend/`).
+- CI: single workflow `.github/workflows/ci.yml` running everything as one sequential job with a concurrency group (same shape as the owner's NotAnotherCards CI): root `pnpm format:check`, backend (`uv sync` → `uv run alembic upgrade head` → `uv run pytest`), frontend (`pnpm install --frozen-lockfile` → `pnpm run lint` → `pnpm run build`). Runs on every push to `main` and every PR; replaces the earlier separate backend/frontend workflows (also merged the second formatting-only job into CI).
 - Frontend TypeScript pinned to `~5.9.3` (from the template's `~7.0.2`); `typescript-eslint` currently supports TS < 6.1, so lint was failing on the template pin. Revisit when typescript-eslint adds TS 7 support.
 
 - Prettier formatting added at the repository root, mirroring the owner's NotAnotherCards project: `.prettierrc` (`singleQuote`, `trailingComma: "all"`) and `.prettierignore`; root `pnpm format` / `pnpm format:check` scripts over `**/*.{ts,tsx,mts,mjs,js,cjs,cts}`; template TS files reformatted; formatting check as a CI job in `frontend.yml`.
