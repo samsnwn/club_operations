@@ -1,0 +1,7 @@
+frontend/dist/**
+**/dist/**
+**/*.yml
+**/*.yaml
+**/*.md
+backend/alembic/versions/**
+backend/.venv/**
