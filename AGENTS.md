@@ -10,7 +10,7 @@ The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs
 
 ## Current stage — read before writing code
 
-- The repository is a **planning + skeleton stage**. `backend/`, `frontend/` and `infra/` contain only placeholders (`.gitkeep`). There is no build or test tooling yet.
+- Scaffolding has begun: `frontend/` is a React + TypeScript + Vite PWA app (pnpm) and `backend/` is a FastAPI app (uv-managed) with an Alembic baseline and a `/api/v1/health` endpoint. `infra/` is still a placeholder — no Docker Compose yet. All modules are placeholders; the first vertical slice (event creation) is not started.
 - The **Phase 0.5 Invoice Ingestion Quick Win** (README §Phase 0.5) is prioritised ahead of Phase 1 by the club owner. Until the owner answers the Phase 0 questions (README §Phase 0.5, last subsection), do **not** scaffold service code against assumptions.
 - When you create real scaffolding (FastAPI app, React app, Alembic baseline, Docker Compose), update `docs/next-steps.md`, `STATUS.md` and `CHANGE_LOG.md` in the same change so agent-readable state is never stale.
 
@@ -25,8 +25,8 @@ The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs
 ## Repository layout
 
 ```
-frontend/   React + TypeScript + Vite PWA (empty, to be scaffolded)
-backend/    FastAPI backend, /api/v1 (empty, to be scaffolded)
+frontend/   React + TypeScript + Vite PWA (scaffolded; placeholder UI)
+backend/    FastAPI backend, /api/v1 (scaffolded; health endpoint + Alembic baseline)
 infra/      Docker Compose, HTTPS/environment setup (empty, to be scaffolded)
 docs/       architecture, milestones, next steps
 README.md   full project plan (single source of product truth)
@@ -37,15 +37,22 @@ CHANGE_LOG.md   chronological change log
 
 ## Commands
 
-No tooling exists yet. Once scaffolding lands, this section must be updated with the real commands (expected shape, for reference):
+Backend (Python, managed with `uv`; run from `backend/`):
 
 ```bash
-# backend (planned)
-uvicorn app.main:app --reload --port 8000
-pytest
-# frontend (planned)
-npm run dev
-npm run build
+uv sync                                   # install dependencies (.venv)
+uv run uvicorn app.main:app --reload --port 8000
+uv run pytest
+uv run alembic upgrade head               # apply migrations
+uv run alembic revision --autogenerate -m "<message>"  # generate from models
+```
+
+Frontend (React + Vite, managed with pnpm; run from `frontend/`):
+
+```bash
+pnpm install
+pnpm run dev
+pnpm run build
 ```
 
 ## Conventions

@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 ### Changed
 - `frontend/vite.config.ts`: `VitePWA` plugin configured — `autoUpdate` service-worker registration and a Web App manifest (`name`: "Blue Velvet", `short_name`: "Velvet").
 
+### Added
+- FastAPI backend scaffold in `backend/` (uv-managed, Python ≥3.12): app factory, versioned router under `/api/v1/`, health endpoint with a SQLite round-trip check (SQLAlchemy 2.0), pydantic-settings config (`.env` gitignored), pytest suite, `backend/README.md`.
+- Alembic migrations wired to application settings via `app.core.config`; empty baseline migration created and applied.
+- CI pipeline `.github/workflows/backend.yml`: `uv sync` → `uv run alembic upgrade head` → `uv run pytest` (pushes to `main` and PRs touching `backend/`).
+
 ## [2026-11-04]
 
 ### Added
