@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 - `vite-plugin-pwa` registered as a dev dependency in `frontend/` (pnpm).
 
 ### Changed
-- `frontend/vite.config.ts`: `VitePWA` plugin configured — `autoUpdate` service-worker registration and a Web App manifest (`name`: "Blue Velvet", `short_name`: "Velvet") with a 64/192/512 px icon set including a maskable icon. Placeholder icon files still need replacing with real brand assets.
+- `frontend/vite.config.ts`: `VitePWA` plugin configured — `autoUpdate` service-worker registration and a Web App manifest (`name`: "Blue Velvet", `short_name`: "Velvet").
 
 ## [2026-11-04]
 

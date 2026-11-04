@@ -22,7 +22,7 @@ Last updated: 2026-11-05
 - Initial repository skeleton and planning docs committed (docs/architecture.md, docs/milestones.md, docs/next-steps.md).
 - AGENTS.md, STATUS.md, CHANGE_LOG.md added.
 - React + TypeScript + Vite scaffold created in `frontend/` (pnpm as package manager).
-- PWA baseline configured: `vite-plugin-pwa` dependency added and `VitePWA` set up in `vite.config.ts` (autoUpdate registration, Web App manifest with icon set).
+- PWA baseline configured: `vite-plugin-pwa` dependency added and `VitePWA` set up in `vite.config.ts` (autoUpdate registration, Web App manifest).
 
 ## In progress / uncommitted
 
@@ -32,9 +32,8 @@ Last updated: 2026-11-05
 
 1. Ask the owner the Phase 0.5 question set (8 questions, README §Phase 0.5) — highest priority, it unblocks the quick win.
 2. Ask the owner the broader Phase 0 discovery questions (module workflows, hardware, hosting, access, users).
-3. Replace PWA placeholder manifest icons/branding (favicon, apple-touch-icon, maskable icon) with real assets.
-4. Based on owner answers, scaffold the Phase 0.5 invoice-ingestion service (independent Python service; mechanisms decided by the sheet-location + email-access answers).
-5. Then proceed to Phase 1 foundation per `docs/next-steps.md`.
+3. Based on owner answers, scaffold the Phase 0.5 invoice-ingestion service (independent Python service; mechanisms decided by the sheet-location + email-access answers).
+4. Then proceed to Phase 1 foundation per `docs/next-steps.md`.
 
 ## Open questions blocking Phase 0.5
 
