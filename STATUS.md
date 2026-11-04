@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-05
 
-## Stage: Frontend scaffold (Vite PWA baseline) — Phase 0.5 discovery still blocking backend
+## Stage: Frontend scaffold (Vite PWA baseline) + backend scaffold (FastAPI) — Phase 0.5 discovery still blocking the invoice service
 
 ## Snapshot
 
@@ -10,8 +10,9 @@ Last updated: 2026-11-05
 | --- | --- |
 | Product plan | Complete — full plan in `README.md`, including Phase 0.5 Invoice Ingestion Quick Win |
 | Owner questions | Not yet answered — Phase 0 (discovery) and Phase 0.5 questions outstanding |
-| Backend code | Placeholder only (`.gitkeep`) |
+| Backend code | FastAPI scaffold (uv): `/api/v1/health` with DB round-trip check, SQLAlchemy 2.0 settings/session, Alembic wired to app settings with empty baseline migration; no models yet |
 | Frontend code | React + TypeScript + Vite scaffold with PWA plugin configured (pnpm); placeholder UI, no real modules yet |
+| CI | GitHub Actions `backend.yml` workflow: uv sync → alembic upgrade → pytest |
 | Infra (Docker/HTTPS) | Placeholder only (`.gitkeep`) |
 | Hosting hardware | Unknown — pending Phase 0 owner answers |
 
@@ -23,17 +24,20 @@ Last updated: 2026-11-05
 - AGENTS.md, STATUS.md, CHANGE_LOG.md added.
 - React + TypeScript + Vite scaffold created in `frontend/` (pnpm as package manager).
 - PWA baseline configured: `vite-plugin-pwa` dependency added and `VitePWA` set up in `vite.config.ts` (autoUpdate registration, Web App manifest).
+- FastAPI backend scaffolded in `backend/` (uv-managed, Python ≥3.12): app factory in `app/main.py`, versioned router under `/api/v1/` with a health endpoint including a database round-trip check (SQLite via SQLAlchemy 2.0), pydantic-settings config with gitignored `.env`, pytest suite for the health endpoint.
+- Alembic wired to application settings (`alembic/env.py` reads `DATABASE_URL`); empty baseline migration created and applied.
+- CI pipeline added: `.github/workflows/backend.yml` (uv sync → Alembic upgrade → pytest) on pushes to `main` and PRs touching `backend/`.
 
 ## In progress / uncommitted
 
-- None — working tree clean; all scaffold and PWA work committed and pushed to `main`.
+- Backend + CI scaffold committed this change (see CHANGE_LOG 2026-11-05); working tree clean after commit.
 
 ## Next steps (ordered)
 
 1. Ask the owner the Phase 0.5 question set (8 questions, README §Phase 0.5) — highest priority, it unblocks the quick win.
 2. Ask the owner the broader Phase 0 discovery questions (module workflows, hardware, hosting, access, users).
 3. Based on owner answers, scaffold the Phase 0.5 invoice-ingestion service (independent Python service; mechanisms decided by the sheet-location + email-access answers).
-4. Then proceed to Phase 1 foundation per `docs/next-steps.md`.
+4. Meanwhile, without depending on owner answers: add Docker Compose (`infra/`), then the first vertical slice (event creation + dashboard listing) with the first Alembic schema migration per `docs/next-steps.md`.
 
 ## Open questions blocking Phase 0.5
 
