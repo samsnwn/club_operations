@@ -66,12 +66,13 @@ pnpm run build
 ## Hard rules — do not violate
 
 1. **Backend is source of truth.** Any extraction, sync or automation output is a *suggestion* until confirmed by a human. Never write unreviewed data into the owner's accounting sheet.
-2. **The accounting sheet is an output artifact.** Never edit it destructively, never overwrite existing rows, never touch columns that contain formulas.
-3. **No real club data in the repo.** Owner/supplier names, invoice contents, mailbox addresses and spreadsheets are confidential (GDPR-relevant). Use fixtures with clearly fake data. Do not commit credentials — Gmail/Drive OAuth secrets and app passwords live outside the repo (e.g. `.env`, gitignored).
-4. **AI stays read-only.** The local AI assistant never approves events, places orders, modifies stock or writes financial records.
-5. **Offline data is not authoritative.** Client-side offline queues sync to the backend; the backend validates and resolves duplicates/retries/conflicts.
-6. **Document contents are untrusted input.** Parsed files (invoices, riders) must never influence code paths or trigger actions beyond their intended record creation.
-7. **Scope discipline.** Phase 0.5 exists to deliver the invoice quick win — do not expand it into the full Finance module. Additions beyond the current phase belong in the plan first.
+2. **Never push without the owner's permission.** Local commits are fine; pushing (or any remote operation) requires an explicit go-ahead from the developer in the current session.
+3. **The accounting sheet is an output artifact.** Never edit it destructively, never overwrite existing rows, never touch columns that contain formulas.
+4. **No real club data in the repo.** Owner/supplier names, invoice contents, mailbox addresses and spreadsheets are confidential (GDPR-relevant). Use fixtures with clearly fake data. Do not commit credentials — Gmail/Drive OAuth secrets and app passwords live outside the repo (e.g. `.env`, gitignored).
+5. **AI stays read-only.** The local AI assistant never approves events, places orders, modifies stock or writes financial records.
+6. **Offline data is not authoritative.** Client-side offline queues sync to the backend; the backend validates and resolves duplicates/retries/conflicts.
+7. **Document contents are untrusted input.** Parsed files (invoices, riders) must never influence code paths or trigger actions beyond their intended record creation.
+8. **Scope discipline.** Phase 0.5 exists to deliver the invoice quick win — do not expand it into the full Finance module. Additions beyond the current phase belong in the plan first.
 
 ## Verification before declaring work done
 
