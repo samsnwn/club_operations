@@ -12,7 +12,7 @@ Last updated: 2026-11-05
 | Owner questions | Not yet answered — Phase 0 (discovery) and Phase 0.5 questions outstanding |
 | Backend code | FastAPI scaffold (uv): `/api/v1/health` with DB round-trip check, SQLAlchemy 2.0 settings/session, Alembic wired to app settings with empty baseline migration; no models yet |
 | Frontend code | React + TypeScript + Vite scaffold with PWA plugin configured (pnpm); placeholder UI, no real modules yet |
-| CI | GitHub Actions `backend.yml` workflow: uv sync → alembic upgrade → pytest |
+| CI | GitHub Actions: `backend.yml` (uv sync → alembic upgrade → pytest) and `frontend.yml` (pnpm lint + build) |
 | Infra (Docker/HTTPS) | Placeholder only (`.gitkeep`) |
 | Hosting hardware | Unknown — pending Phase 0 owner answers |
 
@@ -26,7 +26,7 @@ Last updated: 2026-11-05
 - PWA baseline configured: `vite-plugin-pwa` dependency added and `VitePWA` set up in `vite.config.ts` (autoUpdate registration, Web App manifest).
 - FastAPI backend scaffolded in `backend/` (uv-managed, Python ≥3.12): app factory in `app/main.py`, versioned router under `/api/v1/` with a health endpoint including a database round-trip check (SQLite via SQLAlchemy 2.0), pydantic-settings config with gitignored `.env`, pytest suite for the health endpoint.
 - Alembic wired to application settings (`alembic/env.py` reads `DATABASE_URL`); empty baseline migration created and applied.
-- CI pipeline added: `.github/workflows/backend.yml` (uv sync → Alembic upgrade → pytest) on pushes to `main` and PRs touching `backend/`.
+- CI pipelines added: `.github/workflows/backend.yml` (uv sync → Alembic upgrade → pytest) and `.github/workflows/frontend.yml` (pnpm lint + TypeScript build) on pushes to `main` and PRs touching the respective directories.
 
 ## In progress / uncommitted
 
