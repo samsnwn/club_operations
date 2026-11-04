@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Environment and local data — never commit real club data or credentials
+.env
+*.db
+*.sqlite3
+
+# Build artifacts
+dist/
