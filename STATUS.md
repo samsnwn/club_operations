@@ -27,11 +27,11 @@ Last updated: 2026-11-05
 - PWA baseline configured: `vite-plugin-pwa` dependency added and `VitePWA` set up in `vite.config.ts` (autoUpdate registration, Web App manifest).
 - FastAPI backend scaffolded in `backend/` (uv-managed, Python ≥3.12): app factory in `app/main.py`, versioned router under `/api/v1/` with a health endpoint including a database round-trip check (SQLite via SQLAlchemy 2.0), pydantic-settings config with gitignored `.env`, pytest suite for the health endpoint.
 - Alembic wired to application settings (`alembic/env.py` reads `DATABASE_URL`); empty baseline migration created and applied.
-- CI pipelines added: `.github/workflows/backend.yml` (uv sync → Alembic upgrade → pytest) and `.github/workflows/frontend.yml` (pnpm lint + TypeScript build) on pushes to `main` and PRs touching the respective directories.
+- CI is green: single workflow `.github/workflows/ci.yml` (formatting check, backend tests via uv/Alembic/pytest, frontend pnpm lint + build) — first full `main` run passed after pull request #2 fixed a duplicate pnpm version pin; `pnpm/action-setup` now resolves pnpm from the root `packageManager` field (`pnpm@9.12.0`).
 
 ## In progress / uncommitted
 
-- Backend + CI scaffold committed this change (see CHANGE_LOG 2026-11-05); working tree clean after commit.
+- None — working tree clean; all of today's scaffolding, formatting and CI work is committed, and `main` is up to date with `origin/main` (including merged pull request #2).
 
 ## Next steps (ordered)
 
