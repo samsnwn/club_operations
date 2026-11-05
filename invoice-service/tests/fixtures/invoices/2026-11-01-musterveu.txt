@@ -1,0 +1,14 @@
+Musterveu GmbH
+Steuerstr. 12, 10437 Berlin
+
+Rechnungs-Nr: 2026-118
+Rechnungsdatum: 04.11.2026
+Faelligkeitsdatum: 19.11.2026
+Zahlungsweise: Ueberweisung
+
+Position: PA-Anlage X12, mieten montas   400,00
+Netto: € 1.000,00
+MwSt 19%: 190,00
+Gesamt: € 1.190,00
+
+Vielen Dank fuer Ihren Auftrag.
