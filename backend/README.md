@@ -12,10 +12,10 @@ uv sync            # create .venv and install dependencies
 ## Run
 
 ```bash
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8080
 ```
 
-Interactive API docs: `http://localhost:8000/docs`.
+Interactive API docs: `http://localhost:8080/docs`.
 
 ## Migrations
 
