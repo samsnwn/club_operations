@@ -9,8 +9,13 @@ from app.db.base import get_db
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health")
-def health(db: Session = Depends(get_db)) -> dict:
-    """Liveness plus a round-trip database check."""
+def check_health(db: Session) -> dict:
+    """Liveness plus a round-trip database check, shared by all health routes."""
     db.execute(text("SELECT 1"))
     return {"status": "ok", "database": "ok"}
+
+
+@router.get("/health")
+def health(db: Session = Depends(get_db)) -> dict:
+    """Versioned health endpoint under `/api/v1/`."""
+    return check_health(db)

@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 ### Changed
 - `frontend/vite.config.ts`: `VitePWA` plugin configured — `autoUpdate` service-worker registration and a Web App manifest (`name`: "Blue Velvet", `short_name`: "Velvet").
 - `frontend/vite.config.ts`: dev-server proxy added — same-origin `/api` requests are forwarded to `http://localhost:8000` (no path rewrite; backend routes already start with `/api`). No CORS middleware needed in dev.
+- `app/main.py`: root-level `/health` alias added (hidden from OpenAPI) so local tooling that probes port 8000 directly gets a 200 instead of spamming 404s; the DB round-trip check logic is shared with `/api/v1/health`, which remains the canonical documented endpoint. Regression tests for both routes and schema hiding. Regression tests for both routes and schema hiding.
 - Frontend TypeScript pinned to `~5.9.3` (from the template's `~7.0.2`): `typescript-eslint` 8.x supports TS < 6.1, so `pnpm run lint` failed on the template pin. Both lint and build pass on 5.9.3. Revisit when typescript-eslint adds TS 7 support.
 - CI pnpm configuration cleaned up via pull request #2 (Copilot agent branch `copilot/fix-lint-and-build`): the conflicting duplicate `version` pin was removed from the `pnpm/action-setup` step, which now resolves pnpm from the root `packageManager` field (`pnpm@9.12.0`). First full CI runs on `main` and the PR both completed successfully.
 
