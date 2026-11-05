@@ -8,6 +8,7 @@ the whole pipeline run.
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +25,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/invoices.db"
     # Where captured originals are stored (gitignored).
     attachments_dir: str = "./data/attachments"
+    # Resource limits for untrusted captures and document extraction.
+    max_attachment_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
+    max_pdf_pages: int = Field(default=100, gt=0)
+    max_extracted_text_chars: int = Field(default=1_000_000, gt=0)
 
     # Simple two-user review auth (owner + admin). Tokens come from env only.
     review_tokens: dict[str, str] = {}

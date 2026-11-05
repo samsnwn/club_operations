@@ -25,17 +25,17 @@ AUTO_OK_THRESHOLD = 0.8
 def _status_for(consumed_fields: int, confidence: float) -> str:
     """Stage-1 rollout: humans confirm everything. Low-confidence captures
     carry a distinct status so the review UI can surface them first."""
-    if consumed_fields == 0:
+    if consumed_fields == 0 or confidence < 0.5:
         return "needs_attention"
     return "pending_review"
 
 
-def _document_text(content: bytes) -> str:
+def _document_text(content: bytes, max_pdf_pages: int) -> str:
     """Text layer routing: PDF → embedded text; anything decodable as plain
     UTF-8 text → itself; otherwise → OCR (photos/scans, ~50% per owner answer
     #3). Empty/failed OCR simply yields no suggestions."""
     if content.startswith(b"%PDF"):
-        text = text_extractor.pdf_text(content)
+        text = text_extractor.pdf_text(content, max_pages=max_pdf_pages)
         return text if text.strip() else text_extractor.ocr_text(content)
     try:
         decoded = content.decode("utf-8")
@@ -75,6 +75,30 @@ def poll_sources(db: Session, sources: list) -> int:
 def ingest_file(db: Session, captured: CapturedFile) -> bool:
     """Store + extract one captured file. Returns False for duplicates
     (same content hash channels never create review rows twice)."""
+    settings = get_settings()
+    content_size = len(captured.content)
+    if content_size > settings.max_attachment_bytes:
+        log.warning(
+            "Capture rejected: %s from %s is %d bytes (limit %d)",
+            captured.filename,
+            captured.source,
+            content_size,
+            settings.max_attachment_bytes,
+        )
+        return False
+
+    if captured.content.startswith(b"%PDF"):
+        page_count = text_extractor.pdf_page_count(captured.content)
+        if page_count is not None and page_count > settings.max_pdf_pages:
+            log.warning(
+                "Capture rejected: %s from %s has %d PDF pages (limit %d)",
+                captured.filename,
+                captured.source,
+                page_count,
+                settings.max_pdf_pages,
+            )
+            return False
+
     content_hash = hashlib.sha256(captured.content).hexdigest()
     if db.query(Invoice.id).filter(Invoice.content_hash == content_hash).first():
         log.info(
@@ -82,12 +106,19 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
         )
         return False
 
-    settings = get_settings()
     storage_path = attachment_path(settings.attachments_dir, content_hash)
     storage_path.parent.mkdir(parents=True, exist_ok=True)
     storage_path.write_bytes(captured.content)
 
-    text = _document_text(captured.content)
+    text = _document_text(captured.content, settings.max_pdf_pages)
+    if len(text) > settings.max_extracted_text_chars:
+        log.warning(
+            "Extracted text truncated: %s from %d to %d characters",
+            captured.filename,
+            len(text),
+            settings.max_extracted_text_chars,
+        )
+        text = text[: settings.max_extracted_text_chars]
 
     extraction = field_parser.extract_fields(text)
 
