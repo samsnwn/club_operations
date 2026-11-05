@@ -37,7 +37,16 @@ CHANGE_LOG.md   chronological change log
 
 ## Commands
 
-Backend (Python, managed with `uv`; run from `backend/`):
+Development (Docker Compose; run from the repository root — this is the primary dev path):
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --build   # start backend :8080 + frontend :5173 (hot reload, migrations on startup, SQLite in a named volume)
+docker compose -f infra/docker-compose.yml logs -f         # follow both servers' output
+docker compose -f infra/docker-compose.yml exec backend uv run alembic revision --autogenerate -m "<message>"  # new schema revision
+docker compose -f infra/docker-compose.yml down            # stop and remove containers (keep the database volume; add -v to wipe it)
+```
+
+Backend (host, without Docker — same check with CI parity; run from `backend/`):
 
 ```bash
 uv sync                                   # install dependencies (.venv)
