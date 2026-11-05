@@ -14,7 +14,7 @@ Last updated: 2026-11-05
 | Frontend code | React + TypeScript + Vite scaffold with PWA plugin configured (pnpm); placeholder UI, no real modules yet |
 | CI | Single GitHub Actions workflow `ci.yml`: Prettier `format:check`, backend (uv sync → alembic upgrade → pytest), frontend (pnpm lint + build) — runs as one check on every push to `main` and PR |
 | Formatting | Prettier at the repo root (`pnpm format` / `pnpm format:check`, same config + CI check as the owner's NotAnotherCards project) |
-| Infra (Docker/HTTPS) | Placeholder only (`.gitkeep`) |
+| Infra (Docker/HTTPS) | Development stack live: `infra/docker-compose.yml` with backend on 8080 and Vite on 5173 (both bind-mounted and hot-reloading), SQLite in a named volume, migrations applied on backend startup, frontend deps in volumes. Production compose overrides not yet written |
 | Hosting hardware | Unknown — pending Phase 0 owner answers |
 
 ## Done
