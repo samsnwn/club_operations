@@ -8,18 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 
 ### Added
 - `vite-plugin-pwa` registered as a dev dependency in `frontend/` (pnpm).
+- FastAPI backend scaffold in `backend/` (uv-managed, Python ≥3.12): app factory, versioned router under `/api/v1/`, health endpoint with a SQLite round-trip check (SQLAlchemy 2.0), pydantic-settings config (`.env` gitignored), pytest suite, `backend/README.md`; `backend/app/.gitkeep` removed.
+- Alembic migrations wired to application settings via `app.core.config`; empty baseline migration created and applied.
+- Single CI workflow `.github/workflows/ci.yml` — lint, format, test and build as one sequential job with a concurrency group, same shape as the owner's NotAnotherCards CI: root `pnpm format:check`, backend (`uv sync` → `uv run alembic upgrade head` → `uv run pytest`), frontend (`pnpm install --frozen-lockfile` → `pnpm run lint` → `pnpm run build`). Runs on every push to `main` and every PR; replaced the earlier separate `backend.yml`/`frontend.yml` workflows.
+- Prettier formatting at the repository root, mirroring NotAnotherCards: `.prettierrc` (`singleQuote`, `trailingComma: "all"`), `.prettierignore`, root `pnpm format` / `pnpm format:check` scripts over `**/*.{ts,tsx,mts,mjs,js,cjs,cts}`, committed root `pnpm-lock.yaml`; the four template TS files were reformatted.
+- Root `.gitignore` covering `node_modules/`, env files and OS artifacts (previously only `backend/` and `frontend/` had ignores).
 
 ### Changed
 - `frontend/vite.config.ts`: `VitePWA` plugin configured — `autoUpdate` service-worker registration and a Web App manifest (`name`: "Blue Velvet", `short_name`: "Velvet").
-- Frontend TypeScript pinned to `~5.9.3` (down from the template's `~7.0.2`): `typescript-eslint` 8.x does not support TS 7, so `pnpm run lint` failed. Both `lint` and `build` pass on 5.9.3.
-
-### Added
-- FastAPI backend scaffold in `backend/` (uv-managed, Python ≥3.12): app factory, versioned router under `/api/v1/`, health endpoint with a SQLite round-trip check (SQLAlchemy 2.0), pydantic-settings config (`.env` gitignored), pytest suite, `backend/README.md`.
-- Alembic migrations wired to application settings via `app.core.config`; empty baseline migration created and applied.
-- CI: single workflow `.github/workflows/ci.yml` running everything as one sequential job with a concurrency group (same shape as the owner's NotAnotherCards CI): root `pnpm format:check`, backend (`uv sync` → `uv run alembic upgrade head` → `uv run pytest`), frontend (`pnpm install --frozen-lockfile` → `pnpm run lint` → `pnpm run build`). Runs on every push to `main` and every PR; replaces the earlier separate backend/frontend workflows (also merged the second formatting-only job into CI).
-- Frontend TypeScript pinned to `~5.9.3` (from the template's `~7.0.2`); `typescript-eslint` currently supports TS < 6.1, so lint was failing on the template pin. Revisit when typescript-eslint adds TS 7 support.
-
-- Prettier formatting added at the repository root, mirroring the owner's NotAnotherCards project: `.prettierrc` (`singleQuote`, `trailingComma: "all"`) and `.prettierignore`; root `pnpm format` / `pnpm format:check` scripts over `**/*.{ts,tsx,mts,mjs,js,cjs,cts}`; template TS files reformatted; formatting check as a CI job in `frontend.yml`.
+- Frontend TypeScript pinned to `~5.9.3` (from the template's `~7.0.2`): `typescript-eslint` 8.x supports TS < 6.1, so `pnpm run lint` failed on the template pin. Both lint and build pass on 5.9.3. Revisit when typescript-eslint adds TS 7 support.
+- CI pnpm configuration cleaned up via pull request #2 (Copilot agent branch `copilot/fix-lint-and-build`): the conflicting duplicate `version` pin was removed from the `pnpm/action-setup` step, which now resolves pnpm from the root `packageManager` field (`pnpm@9.12.0`). First full CI runs on `main` and the PR both completed successfully.
 
 ## [2026-11-04]
 
