@@ -37,7 +37,10 @@ def db_fixture() -> Session:
 
 @pytest.fixture(name="client")
 def client_fixture(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClient:
-    monkeypatch.setenv("INVOICE_REVIEW_TOKENS", f'{{"owner": "{OWNER_TOKEN}", "admin": "{ADMIN_TOKEN}"}}')
+    monkeypatch.setenv(
+        "INVOICE_REVIEW_TOKENS",
+        f'{{"owner": "{OWNER_TOKEN}", "admin": "{ADMIN_TOKEN}"}}',
+    )
     monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(mkdtemp()))
     get_settings.cache_clear()
     Base.metadata.create_all(engine)
@@ -74,17 +77,26 @@ def test_queue_requires_token(client: TestClient) -> None:
 
 def test_review_flow_confirm_with_corrections(client: TestClient, db: Session) -> None:
     run_fixture_ingest(db)
-    items = client.get("/api/v1/queue", headers={"Authorization": f"Bearer {OWNER_TOKEN}"}).json()["items"]
+    items = client.get(
+        "/api/v1/queue", headers={"Authorization": f"Bearer {OWNER_TOKEN}"}
+    ).json()["items"]
     target = items[0]
     response = client.post(
         f"/api/v1/queue/{target['id']}/confirm",
         headers={"Authorization": f"Bearer {ADMIN_TOKEN}"},
         json={"gross": 1190.00, "supplier": "Musterveru GmbH"},
     )
-    assert response.json() == {"id": target["id"], "status": "confirmed", "reviewed_by": "admin"}
-    assert client.get("/api/v1/queue", headers={"Authorization": f"Bearer {OWNER_TOKEN}"}).json()["count"] == len(
-        items
-    ) - 1
+    assert response.json() == {
+        "id": target["id"],
+        "status": "confirmed",
+        "reviewed_by": "admin",
+    }
+    assert (
+        client.get(
+            "/api/v1/queue", headers={"Authorization": f"Bearer {OWNER_TOKEN}"}
+        ).json()["count"]
+        == len(items) - 1
+    )
 
 
 def test_digest_lists_pending(db: Session) -> None:

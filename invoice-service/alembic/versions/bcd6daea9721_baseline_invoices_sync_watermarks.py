@@ -1,7 +1,7 @@
 """baseline — invoices, sync watermarks
 
 Revision ID: bcd6daea9721
-Revises: 
+Revises:
 Create Date: 2026-11-05 13:35:46.564433
 """
 
@@ -11,8 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 
-
-revision: str = 'bcd6daea9721'
+revision: str = "bcd6daea9721"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

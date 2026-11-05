@@ -28,7 +28,9 @@ def build_digest(db: Session) -> str:
     pending = (
         db.query(Invoice)
         .filter(Invoice.status.in_(["pending_review", "needs_attention"]))
-        .order_by(Invoice.confidence.asc())  # worst first — that's where attention is needed
+        .order_by(
+            Invoice.confidence.asc()
+        )  # worst first — that's where attention is needed
         .all()
     )
     attention = [item for item in pending if item.status == "needs_attention"]
@@ -38,7 +40,10 @@ def build_digest(db: Session) -> str:
     ]
     if attention:
         lines.append("!! Not recognised automatically — enter the values manually:")
-        lines.extend(f"  - #{item.id} {item.supplier_guess or '(unknown supplier)'}" for item in attention)
+        lines.extend(
+            f"  - #{item.id} {item.supplier_guess or '(unknown supplier)'}"
+            for item in attention
+        )
         lines.append("")
     lines.append("Others (check extracted fields, then confirm):")
     lines.extend(

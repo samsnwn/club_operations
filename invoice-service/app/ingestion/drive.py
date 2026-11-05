@@ -16,11 +16,17 @@ log = logging.getLogger(__name__)
 class DriveSource:
     name = "drive"
 
-    def __init__(self, folder_id: str | None = None, credentials_path: str | None = None) -> None:
+    def __init__(
+        self, folder_id: str | None = None, credentials_path: str | None = None
+    ) -> None:
         self._configured = bool(folder_id and credentials_path)
 
     def poll(self, cursor: str | None) -> tuple[list[CapturedFile], str]:
         if not self._configured:
-            log.info("Drive source not configured — skipping (plan: OAuth credentials outside the repo).")
+            log.info(
+                "Drive source not configured — skipping (plan: OAuth credentials outside the repo)."
+            )
             return [], cursor or ""
-        raise NotImplementedError("Drive API wiring lands when owner credentials exist (Phase 0.5 step).")
+        raise NotImplementedError(
+            "Drive API wiring lands when owner credentials exist (Phase 0.5 step)."
+        )

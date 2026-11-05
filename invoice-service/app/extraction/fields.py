@@ -12,12 +12,24 @@ from typing import Final
 
 # Common German/English club-invoice patterns (bounded, defensive).
 _PATTERNS: Final = (
-    (r"Rechnung(?:s-)?(?:nummer|Nr\.?)[:\s]*([A-Za-z0-9/\-]{2,24})", "invoice_number", 0.8),
+    (
+        r"Rechnung(?:s-)?(?:nummer|Nr\.?)[:\s]*([A-Za-z0-9/\-]{2,24})",
+        "invoice_number",
+        0.8,
+    ),
     (r"Invoice(?: number| no\.?)[:\s]*([A-Za-z0-9/\-]{2,24})", "invoice_number", 0.8),
     (r"Rechnungsdatum[:\s]*([0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4})", "invoice_date", 0.7),
     (r"Rechnungsdatum[:\s]*(\d{4}-\d{2}-\d{2})", "invoice_date", 0.7),
-    (r"F[aä]llig(?:keitsdatum)?[:\s]*([0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4})", "due_date", 0.7),
-    (r"Due(?: date)?[:\s]*([0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4}|\d{4}-\d{2}-\d{2})", "due_date", 0.7),
+    (
+        r"F[aä]llig(?:keitsdatum)?[:\s]*([0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4})",
+        "due_date",
+        0.7,
+    ),
+    (
+        r"Due(?: date)?[:\s]*([0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4}|\d{4}-\d{2}-\d{2})",
+        "due_date",
+        0.7,
+    ),
     (r"Betrag[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "gross", 0.6),
     (r"Gesamt(?:betrag)?[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "gross", 0.6),
     (r"Total(?: amount)?[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "gross", 0.6),
@@ -84,5 +96,7 @@ def extract_fields(text: str) -> Extraction:
         else:
             value = match.group(1).strip()
         if value is not None:
-            extraction.add(Suggestion(field=fieldname, value=value, confidence=confidence))
+            extraction.add(
+                Suggestion(field=fieldname, value=value, confidence=confidence)
+            )
     return extraction

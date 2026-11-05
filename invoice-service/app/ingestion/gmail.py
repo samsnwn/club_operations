@@ -17,7 +17,9 @@ log = logging.getLogger(__name__)
 class GmailSource:
     name = "gmail"
 
-    def __init__(self, mailbox: str | None = None, credentials_path: str | None = None) -> None:
+    def __init__(
+        self, mailbox: str | None = None, credentials_path: str | None = None
+    ) -> None:
         self._configured = bool(mailbox and credentials_path)
 
     def poll(self, cursor: str | None) -> tuple[list[CapturedFile], str]:
@@ -26,4 +28,6 @@ class GmailSource:
                 "Gmail source not configured — skipping (plan: dedicated forwarding mailbox, OAuth outside the repo)."
             )
             return [], cursor or ""
-        raise NotImplementedError("Gmail API wiring lands when owner credentials exist (Phase 0.5 step).")
+        raise NotImplementedError(
+            "Gmail API wiring lands when owner credentials exist (Phase 0.5 step)."
+        )

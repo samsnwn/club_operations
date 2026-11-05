@@ -65,13 +65,19 @@ pnpm run dev
 pnpm run build
 ```
 
-Formatting (Prettier, run from the repository root; CI checks formatting):
+Formatting (one entry point, language-native toolchains; run from the
+repository root — CI checks formatting):
 
 ```bash
 pnpm install
-pnpm format          # write formatting
-pnpm format:check    # verify formatting (same check CI runs)
+pnpm format          # write formatting: Prettier (TS/JS) + ruff format (both Python services)
+pnpm format:check    # verify formatting (same check CI runs; Prettier + ruff)
 ```
+
+- Prettier covers web formats only (`.ts/.tsx/.js/...`); it never touches Python.
+- Python is formatted exclusively with `ruff format` (Black-style, the Python
+  standard), declared as a dev dependency in each `pyproject.toml`.
+- Both agree on the repo rules: LF, UTF-8, newline at end of file.
 
 ## Conventions
 

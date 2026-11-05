@@ -27,17 +27,17 @@ jobs:
           cache: pnpm
           cache-dependency-path: '**/pnpm-lock.yaml'
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: '{backend,invoice-service}/uv.lock'
+
       - name: Install formatting dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Check formatting
         run: pnpm format:check
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          cache-dependency-glob: backend/uv.lock
 
       - name: Install backend dependencies
         run: uv sync
@@ -50,6 +50,14 @@ jobs:
       - name: Run backend tests
         run: uv run pytest --strict-markers --strict-config
         working-directory: backend
+
+      - name: Install invoice service dependencies
+        run: uv sync
+        working-directory: invoice-service
+
+      - name: Run invoice service tests
+        run: uv run pytest --strict-markers --strict-config
+        working-directory: invoice-service
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
