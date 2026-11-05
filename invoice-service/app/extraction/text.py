@@ -14,11 +14,20 @@ import subprocess
 from pypdf import PdfReader
 
 
-def pdf_text(content: bytes) -> str:
+def pdf_page_count(content: bytes) -> int | None:
+    """Return the PDF page count, or None when the document is unreadable."""
+    try:
+        return len(PdfReader(io.BytesIO(content)).pages)
+    except Exception:  # noqa: BLE001 — corrupt files must not break ingest
+        return None
+
+
+def pdf_text(content: bytes, max_pages: int | None = None) -> str:
     """Extract the embedded text layer (empty string when scanned-only)."""
     try:
         reader = PdfReader(io.BytesIO(content))
-        return "\n".join((page.extract_text() or "") for page in reader.pages)
+        pages = reader.pages if max_pages is None else reader.pages[:max_pages]
+        return "\n".join((page.extract_text() or "") for page in pages)
     except Exception:  # noqa: BLE001 — corrupt files must not break ingest
         return ""
 

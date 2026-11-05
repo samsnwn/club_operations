@@ -13,7 +13,7 @@ os.environ.setdefault("INVOICE_DATABASE_URL", "sqlite:///:memory:")  # pragma: e
 from app.core.config import get_settings  # noqa: E402
 from app.db.base import Base, SessionLocal, engine  # noqa: E402
 from app.ingestion.fixtures import FixtureSource  # noqa: E402
-from app.ingestion.pipeline import poll_sources  # noqa: E402
+from app.ingestion.pipeline import ingest_file, poll_sources  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models.invoice import Invoice, SyncWatermark  # noqa: E402
 from app.notify.digest import build_digest  # noqa: E402
@@ -21,6 +21,14 @@ from sqlalchemy.orm import Session  # noqa: E402
 
 OWNER_TOKEN = "owner-test-token"
 ADMIN_TOKEN = "admin-test-token"
+
+
+class CapturedTestFile:
+    source = "test"
+    filename = "oversized.txt"
+
+    def __init__(self, content: bytes) -> None:
+        self.content = content
 
 
 @pytest.fixture(name="db")
@@ -69,6 +77,18 @@ def test_unrecognised_capture_becomes_needs_attention(db: Session) -> None:
     run_fixture_ingest(db)
     attention = db.query(Invoice).filter(Invoice.status == "needs_attention").one()
     assert attention.supplier_guess is None
+
+
+def test_oversized_capture_is_rejected_before_storage(
+    db: Session, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("INVOICE_MAX_ATTACHMENT_BYTES", "10")
+    monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(tmp_path))
+    get_settings.cache_clear()
+
+    assert ingest_file(db, CapturedTestFile(b"x" * 11)) is False
+    assert db.query(Invoice).count() == 0
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_queue_requires_token(client: TestClient) -> None:
