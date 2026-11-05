@@ -31,7 +31,11 @@ class FixtureSource:
             for path in sorted(FIXTURES_DIR.iterdir()):
                 if path.name > newest and path.is_file():
                     files.append(
-                        FixtureCapturedFile(source=self.name, filename=path.name, content=path.read_bytes())
+                        FixtureCapturedFile(
+                            source=self.name,
+                            filename=path.name,
+                            content=path.read_bytes(),
+                        )
                     )
                     newest = path.name
         return files, newest

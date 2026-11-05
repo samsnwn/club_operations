@@ -8,7 +8,15 @@ cursor. Trust levels mirror README §Phase 0.5.
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -29,9 +37,7 @@ class Invoice(Base):
     """One captured invoice, from ingestion through review to export."""
 
     __tablename__ = "invoices"
-    __table_args__ = (
-        UniqueConstraint("content_hash", name="uq_invoice_content_hash"),
-    )
+    __table_args__ = (UniqueConstraint("content_hash", name="uq_invoice_content_hash"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

@@ -41,7 +41,9 @@ def _document_text(content: bytes) -> str:
         decoded = content.decode("utf-8")
     except UnicodeDecodeError:
         return text_extractor.ocr_text(content)
-    printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in decoded) / max(len(decoded), 1)
+    printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in decoded) / max(
+        len(decoded), 1
+    )
     return decoded if printable >= 0.9 else text_extractor.ocr_text(content)
 
 
@@ -75,7 +77,9 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
     (same content hash channels never create review rows twice)."""
     content_hash = hashlib.sha256(captured.content).hexdigest()
     if db.query(Invoice.id).filter(Invoice.content_hash == content_hash).first():
-        log.info("Duplicate capture skipped: %s (%s)", captured.filename, content_hash[:12])
+        log.info(
+            "Duplicate capture skipped: %s (%s)", captured.filename, content_hash[:12]
+        )
         return False
 
     settings = get_settings()

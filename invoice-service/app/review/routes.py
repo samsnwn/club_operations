@@ -21,8 +21,18 @@ from sqlalchemy.orm import Session
 router = APIRouter(tags=["review"])
 log = logging.getLogger(__name__)
 
-FINAL_FIELDS = ("supplier", "invoice_number", "invoice_date", "due_date", "net", "vat", "gross", "category",
-                "payment_method", "description")
+FINAL_FIELDS = (
+    "supplier",
+    "invoice_number",
+    "invoice_date",
+    "due_date",
+    "net",
+    "vat",
+    "gross",
+    "category",
+    "payment_method",
+    "description",
+)
 
 
 def current_reviewer(authorization: Annotated[str | None, Header()] = None) -> str:
@@ -52,8 +62,11 @@ def _serialise(invoice: Invoice) -> dict:
 
 
 @router.get("/queue")
-def list_queue(status: str = "pending_review", db: Session = Depends(get_db),
-               reviewer: str = Depends(current_reviewer)) -> dict:
+def list_queue(
+    status: str = "pending_review",
+    db: Session = Depends(get_db),
+    reviewer: str = Depends(current_reviewer),
+) -> dict:
     """Pending items, confident captures first (stage 1: all need closing)."""
     rows = (
         db.query(Invoice)
@@ -66,7 +79,11 @@ def list_queue(status: str = "pending_review", db: Session = Depends(get_db),
 
 
 @router.get("/queue/{invoice_id}")
-def get_item(invoice_id: int, db: Session = Depends(get_db), reviewer: str = Depends(current_reviewer)) -> dict:
+def get_item(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    reviewer: str = Depends(current_reviewer),
+) -> dict:
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -92,8 +109,12 @@ class ReviewPayload(BaseModel):
 
 
 @router.post("/queue/{invoice_id}/confirm")
-def confirm(invoice_id: int, payload: ReviewPayload, db: Session = Depends(get_db),
-            reviewer: str = Depends(current_reviewer)) -> dict:
+def confirm(
+    invoice_id: int,
+    payload: ReviewPayload,
+    db: Session = Depends(get_db),
+    reviewer: str = Depends(current_reviewer),
+) -> dict:
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -113,12 +134,19 @@ def confirm(invoice_id: int, payload: ReviewPayload, db: Session = Depends(get_d
 
 
 @router.post("/queue/{invoice_id}/reject")
-def reject(invoice_id: int, db: Session = Depends(get_db), reviewer: str = Depends(current_reviewer)) -> dict:
+def reject(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    reviewer: str = Depends(current_reviewer),
+) -> dict:
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
     if invoice.status == "confirmed":
-        raise HTTPException(status_code=409, detail="Already confirmed — ask the accountant to fix the sheet instead")
+        raise HTTPException(
+            status_code=409,
+            detail="Already confirmed — ask the accountant to fix the sheet instead",
+        )
     invoice.status = "rejected"
     invoice.reviewed_by = reviewer
     invoice.reviewed_at = dt.datetime.now()
