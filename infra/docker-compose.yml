@@ -1,0 +1,69 @@
+# Blue Velvet — development stack.
+#
+# Everything self-hosted on club infrastructure per README §technical architecture.
+# Dev: bind-mounted sources so both servers hot-reload; SQLite lives in a named
+# volume (never bind-mount club data outside the repo — hard rule 4 is a hard
+# constraint, not a suggestion).
+#
+# Production overrides will land as a separate compose file once deployed.
+#
+# Usage:
+#   docker compose -f infra/docker-compose.yml up --build
+#   docker compose -f infra/docker-compose.yml down -v   # -v wipes the SQLite volume too
+
+name: blue-velvet
+
+services:
+  backend:
+    build:
+      context: ../backend
+      target: dev
+    init: true
+    ports:
+      - "8080:8080"
+    environment:
+      # Keep SQLite inside the container's named volume, not a bind mount.
+      DATABASE_URL: "sqlite:////data/blue_velvet.db"
+    volumes:
+      - db-data:/data
+      # Source binds for StatReload-based hot reload (application code, tests,
+      # and migration definitions). Dependencies come from the image.
+      - ../backend/app:/app/app
+      - ../backend/tests:/app/tests
+      - ../backend/alembic:/app/alembic
+      - ../backend/alembic.ini:/app/alembic.ini
+      - ../backend/pyproject.toml:/app/pyproject.toml
+      - ../backend/uv.lock:/app/uv.lock
+    # Dev entrypoint: apply migrations, then serve with reload.
+    command: ["sh", "-c", "uv run alembic upgrade head && uvicorn app.main:app --reload --host 0.0.0.0 --port 8080"]
+
+  frontend:
+    build:
+      context: ../frontend
+      target: dev
+    init: true
+    ports:
+      - "5173:5173"
+    environment:
+      # Proxy destination for same-origin /api requests.
+      BACKEND_URL: "http://backend:8080"
+    depends_on:
+      - backend
+    volumes:
+      # Hot-reload mirrors the backend: bind sources, keep deps in volumes.
+      - ../frontend/src:/app/src
+      - ../frontend/public:/app/public
+      - ../frontend/index.html:/app/index.html
+      - ../frontend/vite.config.ts:/app/vite.config.ts
+      - ../frontend/eslint.config.js:/app/eslint.config.js
+      - ../frontend/tsconfig.json:/app/tsconfig.json
+      - ../frontend/tsconfig.app.json:/app/tsconfig.app.json
+      - ../frontend/tsconfig.node.json:/app/tsconfig.node.json
+      # Dependencies stay in volumes so host and container installs don't clash.
+      - frontend-node-modules:/app/node_modules
+      - frontend-vite-cache:/app/node_modules/.vite
+
+volumes:
+  db-data:
+  frontend-node-modules:
+  frontend-vite-cache:

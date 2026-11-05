@@ -1,0 +1,14 @@
+# Context: ../backend
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+*.db
+*.sqlite3
+*.log
+.env
+dist/
+probe-requests.log
+.git/
