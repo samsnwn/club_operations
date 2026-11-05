@@ -11,17 +11,20 @@ Last updated: 2026-11-05
 | Product plan | Complete — full plan in `README.md`, including Phase 0.5 Invoice Ingestion Quick Win |
 | Owner questions | Not yet answered — Phase 0 (discovery) and Phase 0.5 questions outstanding |
 | Backend code | FastAPI scaffold (uv): `/api/v1/health` with DB round-trip check, SQLAlchemy 2.0 settings/session, Alembic wired to app settings with empty baseline migration; no models yet |
+| Invoice service (Phase 0.5) | Scaffolded as independent `invoice-service/` (uv, FastAPI :8081, own SQLite + Alembic): ingestion sources (Drive/Gmail degrade cleanly until credentials; fixture source), catch-up watermarks, extraction with confidence + first-pass trust, review queue API with owner/admin tokens, digest notifier, Sheets export feature-flagged OFF; runs in dev compose with Tesseract |
 | Frontend code | React + TypeScript + Vite scaffold with PWA plugin configured (pnpm); placeholder UI, no real modules yet |
 | CI | Single GitHub Actions workflow `ci.yml`: Prettier `format:check`, backend (uv sync → alembic upgrade → pytest), frontend (pnpm lint + build) — runs as one check on every push to `main` and PR |
 | Formatting | Prettier at the repo root (`pnpm format` / `pnpm format:check`, same config + CI check as the owner's NotAnotherCards project) |
-| Infra (Docker/HTTPS) | Development stack live: `infra/docker-compose.yml` with backend on 8080 and Vite on 5173 (both bind-mounted and hot-reloading), SQLite in a named volume, migrations applied on backend startup, frontend deps in volumes. Production compose overrides not yet written |
-| Hosting hardware | Unknown — pending Phase 0 owner answers |
+| Infra (Docker/HTTPS) | Development stack live: `infra/docker-compose.yml` with backend on 8080, Vite on 5173, and the invoice service on 8081 (Tesseract installed in its image; invoice store + files in their own volumes). Production compose overrides not yet written |
+| Hosting hardware | Unknown — interim plan A: invoice service runs on demand on the owner's workstation (pull-based ingestion + watermark catch-up); upgrades to a dedicated box without rework |
 
 ## Done
 
 - Complete project plan written and committed (README.md): modules 4.1–4.10, technical architecture, security, access, 10-phase roadmap, first-usable-version scope, product principles.
 - Phase 0.5 — Invoice Ingestion Quick Win defined and expanded (email + Google Drive ingestion, OCR decision, review queue with trust levels, Google Sheets API vs. local `.xlsx`, architecture notes, owner questions).
 - Initial repository skeleton and planning docs committed (docs/architecture.md, docs/milestones.md, docs/next-steps.md).
+- Phase 0.5 unblocked: owner's working assumptions recorded in README §Phase 0.5 (Drive, Gmail + dedicated forwarding mailbox, 50/50 photo/scan mix with local Tesseract OCR, assumed v1 column set, owner + one admin as reviewers, ~20 invoices/month, email digest with review instructions; credit notes still open). Interim hosting = plan A: on-demand runs on the owner's workstation with watermark catch-up; upgrades to dedicated hardware without rework.
+- Phase 0.5 `invoice-service/` scaffolded (uv, FastAPI on :8081, own SQLite + Alembic baseline): pull-based ingestion with per-source watermarks (Drive/Gmail adapters degrade cleanly until real credentials; fixtures for dev/tests), content-hash de-duplication, extraction as suggestions with per-field confidence and first-pass trust, review queue (`/api/v1/queue`: list/get/confirm-with-corrections/reject, bearer-token auth for owner + admin), collapsed digest notifier (SMTP-configurable, log-only fallback), Sheets export behind the `INVOICE_EXPORT_ENABLED=false` flag. 6/6 tests pass; runs as `invoice-service` in the dev compose, with Tesseract baked into its image.
 - AGENTS.md, STATUS.md, CHANGE_LOG.md added.
 - React + TypeScript + Vite scaffold created in `frontend/` (pnpm as package manager).
 - PWA baseline configured: `vite-plugin-pwa` dependency added and `VitePWA` set up in `vite.config.ts` (autoUpdate registration, Web App manifest).

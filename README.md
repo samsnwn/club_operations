@@ -715,6 +715,46 @@ Which of the two applies is one of the first questions to settle with the owner.
 7. Are there credit notes or corrections that reverse earlier invoices, and how are those represented in the sheet today?
 8. How should the owner be alerted about new processed invoices and about items needing attention?
 
+#### Owner answers (working assumptions, recorded 2026-11-05)
+
+The owner answered the questionnaire with these working assumptions; the plan
+below is written against them and will be adjusted where reality differs.
+
+1. **Sheet location:** Google Drive → the service writes through the **Google
+   Sheets API** (append-only; existing rows and formula columns are never
+   touched — output artifact, hard rule 2).
+2. **Email:** Gmail, with a **dedicated forwarding mailbox** created for the
+   service (owner's daily mailbox untouched, exactly the "cleaner alternative"
+   described above). Gmail API via OAuth for that mailbox only.
+3. **Format mix:** ~50% photos/scans, ~50% clean PDFs → local OCR is
+   mandatory; **Tesseract only, no cloud OCR**. Lower photo-quality accuracy is
+   absorbed by the review queue (stage 1: everything is confirmed by a human
+   anyway).
+4. **Columns:** the assumed v1 set is the common club-invoice columns:
+   supplier, invoice number, invoice date, due date, net, VAT, gross,
+   category, description, payment method. The mapping is **confirmed against
+   the real sheet before the first write is switched on** (export stays
+   feature-flagged off until then).
+5. **Access:** the owner and one admin staff member, each with their own
+   review-queue credentials. No broader RBAC in this service.
+6. **Volume:** ~20 invoices/month from a small number of suppliers → a
+   nightly batch (and catch-up polling) is entirely sufficient; tables are
+   sized accordingly.
+7. **Credit notes/corrections:** not yet answered — **open**. Until answered,
+   corrections follow the review-queue path only (fix values before confirm);
+   reverse-document handling stays out of scope.
+8. **Notifications:** the owner receives an **email digest with instructions**
+   on what needs attention (link to the review queue plus step-by-step
+   guidance).
+
+Interim hosting: the dedicated club-hardware setup does not exist yet, so the
+service initially runs **on demand on the owner's workstation** (catch-up
+polling with per-source sync watermarks; offline periods simply mean the next
+run ingests the backlog — the forwarding mailbox and Drive folder buffer
+everything). Collapsed digest notifications: a quiet period produces one
+"everything since last review" summary. This upgrades to a dedicated always-on
+box with no rework the moment the hardware exists.
+
 ### Phase 1 — Project Foundation
 
 - Set up repository and project structure.
