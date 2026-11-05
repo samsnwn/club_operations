@@ -41,7 +41,7 @@ Backend (Python, managed with `uv`; run from `backend/`):
 
 ```bash
 uv sync                                   # install dependencies (.venv)
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8080
 uv run pytest
 uv run alembic upgrade head               # apply migrations
 uv run alembic revision --autogenerate -m "<message>"  # generate from models
@@ -74,7 +74,7 @@ pnpm format:check    # verify formatting (same check CI runs)
 ## Hard rules — do not violate
 
 1. **Backend is source of truth.** Any extraction, sync or automation output is a *suggestion* until confirmed by a human. Never write unreviewed data into the owner's accounting sheet.
-2. **Never push without the owner's permission.** Local commits are fine; pushing (or any remote operation) requires an explicit go-ahead from the developer in the current session.
+2. **Never commit or push without the developer's permission.** Edits stay in the working tree; creating commits requires an explicit go-ahead in the current session, and pushing (or any remote operation) needs a second, explicit go-ahead. When in doubt, present changes and wait.
 3. **The accounting sheet is an output artifact.** Never edit it destructively, never overwrite existing rows, never touch columns that contain formulas.
 4. **No real club data in the repo.** Owner/supplier names, invoice contents, mailbox addresses and spreadsheets are confidential (GDPR-relevant). Use fixtures with clearly fake data. Do not commit credentials — Gmail/Drive OAuth secrets and app passwords live outside the repo (e.g. `.env`, gitignored).
 5. **AI stays read-only.** The local AI assistant never approves events, places orders, modifies stock or writes financial records.
