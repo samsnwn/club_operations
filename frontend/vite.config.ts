@@ -17,4 +17,14 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    proxy: {
+      // In dev, forward same-origin /api requests to the FastAPI backend.
+      // No rewrite: the backend paths already start with /api.
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 });
