@@ -14,7 +14,7 @@ Last updated: 2026-11-05
 | Invoice service (Phase 0.5) | Scaffolded as independent `invoice-service/` (uv, FastAPI :8081, own SQLite + Alembic): ingestion sources (Drive/Gmail degrade cleanly until credentials; fixture source), catch-up watermarks, extraction with confidence + first-pass trust, review queue API with owner/admin tokens, digest notifier, Sheets export feature-flagged OFF; runs in dev compose with Tesseract |
 | Frontend code | React + TypeScript + Vite scaffold with PWA plugin configured (pnpm); placeholder UI, no real modules yet |
 | CI | Single GitHub Actions workflow `ci.yml`: Prettier `format:check`, backend (uv sync → alembic upgrade → pytest), frontend (pnpm lint + build) — runs as one check on every push to `main` and PR |
-| Formatting | Prettier at the repo root (`pnpm format` / `pnpm format:check`, same config + CI check as the owner's NotAnotherCards project) |
+| Formatting | One command, two language-native formatters: `pnpm format` / `pnpm format:check` run Prettier (TS/JS; same config + CI check as the owner's NotAnotherCards project) **and** Ruff (Black-style) over `backend/` + `invoice-service/` — Prettier never touches Python, Ruff never touches TS |
 | Infra (Docker/HTTPS) | Development stack live: `infra/docker-compose.yml` with backend on 8080, Vite on 5173, and the invoice service on 8081 (Tesseract installed in its image; invoice store + files in their own volumes). Production compose overrides not yet written |
 | Hosting hardware | Unknown — interim plan A: invoice service runs on demand on the owner's workstation (pull-based ingestion + watermark catch-up); upgrades to a dedicated box without rework |
 
