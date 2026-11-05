@@ -1,0 +1,2 @@
+Rechnung — eingescanntes Foto ohne Textlayer, daher keine maschinelle Extraktion möglich:
+Das Bild muss manuell erfasst werden; die Extraktion liefert keine Felder und der Beleg landet als "Aufmerksamkeit" in der Warteschlange dieses Diensts, wo der Wert manuell ergänzt und bestätigt wird.
