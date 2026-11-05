@@ -1,0 +1,17 @@
+# Python/uv
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Data — invoice files and records never belong in git
+.env
+data/
+*.db
+*.sqlite3
+*.log
+
+# Files captured during manual runs
+attachments/
