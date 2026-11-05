@@ -27,7 +27,8 @@ The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs
 ```
 frontend/   React + TypeScript + Vite PWA (scaffolded; placeholder UI)
 backend/    FastAPI backend, /api/v1 (scaffolded; health endpoint + Alembic baseline)
-infra/      Docker Compose, HTTPS/environment setup (empty, to be scaffolded)
+invoice-service/  Phase 0.5 invoice ingestion service (FastAPI + SQLite; pull ingestion, review queue, flag-gated Sheets export)
+infra/      Docker Compose dev stack (backend :8080, frontend :5173, invoice-service :8081), HTTPS setup to come
 docs/       architecture, milestones, next steps
 README.md   full project plan (single source of product truth)
 AGENTS.md   this file — conventions and guardrails for agents
