@@ -32,7 +32,7 @@ containers — they are never bind-mounted or committed.
 | Service | Build context | Port | Binds (hot reload) | Volumes |
 | --- | --- | --- | --- | --- |
 | `backend` | `backend/Dockerfile` — uv-based, `alembic upgrade head` runs at start | `:8080` | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `db-data:/data` (SQLite) |
-| `frontend` | `frontend/Dockerfile` — node:22 + pinned `pnpm@9.12.0` (corepack activate) | `:5173` | `src/`, `public/`, `index.html`, configs | `frontend-node-modules`, `frontend-vite-cache` |
+| `frontend` | `frontend/Dockerfile` — node:22 + pinned `pnpm@9.12.0` (corepack activate) | `:5173` | `src/`, `public/`, `index.html`, configs | `frontend-vite-cache` (Vite pre-bundle cache) |
 
 Wiring: the browser talks only to `:5173`; the Vite dev-server proxy
 (configured via `BACKEND_URL`, default `http://localhost:8080` on the host,
@@ -56,7 +56,9 @@ Use one or the other consistently — never edit inside a container.
 
 Rebuild only when dependencies or Dockerfiles change (`up -d --build`); plain
 `up -d` reuses the built image. Source edits need no rebuild — both servers
-hot-reload from the binds.
+hot-reload from the binds. Frontend dependencies come from the image, not a
+named volume, so a rebuild always picks up lockfile changes; the Vite cache
+volume only stores regenerable pre-bundle output.
 
 ## Production (planned — not wired yet)
 
