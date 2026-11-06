@@ -28,6 +28,13 @@ The database URL comes from `app.core.config` (`DATABASE_URL` env var overrides
 the SQLite default). The SQLite file (`blue_velvet.db`) is gitignored — real
 club data lives only outside the repo.
 
+## Environment
+
+Every setting has a development-safe default, so a `.env` is optional locally.
+To override anything, copy `.env.example` to `.env` in this directory (the
+service loads `.env` from its working directory) and edit it. `INVOICE_SERVICE_TOKEN`
+must match the invoice service's `INVOICE_INTERNAL_TOKEN`. Never commit `.env`.
+
 ## Tests
 
 ```bash

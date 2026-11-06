@@ -7,3 +7,5 @@ node_modules/
 # Environment files — never commit credentials
 .env
 .env.*
+# Examples are safe to commit
+!.env.example

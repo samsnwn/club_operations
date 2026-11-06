@@ -46,6 +46,14 @@ For a real-invoice demonstration, copy PDFs or images into
 gitignored and bind-mounted into Docker. Imported originals remain in the
 service's data volume and can be previewed from the review screen.
 
+## Environment
+
+Every setting has a development-safe default. To override anything, copy
+`.env.example` to `.env` in this directory; the service adds the `INVOICE_`
+prefix automatically. `INVOICE_INTERNAL_TOKEN` must match the backend's
+`INVOICE_SERVICE_TOKEN`. Keep `INVOICE_EXPORT_ENABLED=false` until the sheet
+mapping is confirmed. Never commit `.env`.
+
 ## Reviewer attribution
 
 `POST /api/v1/queue/{id}/confirm` and `/reject` record a `reviewed_by` value.

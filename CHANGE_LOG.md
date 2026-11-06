@@ -34,6 +34,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   caller; the test path builds its sources directly).
 
 ### Added
+- Per-service environment templates: `backend/.env.example` and
+  `invoice-service/.env.example` document every supported setting with
+  development-safe defaults and note the token that must match between the
+  two services. Both READMEs gained an Environment section. The root
+  `.gitignore` now re-includes `.env.example` while still ignoring real
+  `.env` files.
 - Internal authentication for the platform: `User` and `AuthSession` models
   with an Alembic migration (`5ea31f09edc2`), Argon2id password hashing,
   opaque database-backed sessions (only the SHA-256 token hash is stored) in
