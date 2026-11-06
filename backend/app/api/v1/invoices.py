@@ -15,6 +15,11 @@ def _service_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {get_settings().invoice_service_token}"}
 
 
+def _client() -> httpx.AsyncClient:
+    """HTTP client factory for invoice-service calls (test seam)."""
+    return httpx.AsyncClient(timeout=30.0)
+
+
 async def _request(
     method: str,
     path: str,
@@ -26,7 +31,7 @@ async def _request(
     settings = get_settings()
     url = f"{settings.invoice_service_url.rstrip('/')}{path}"
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with _client() as client:
             response = await client.request(
                 method, url, headers=_service_headers(), json=json, params=params
             )
@@ -49,6 +54,9 @@ async def import_invoices() -> dict:
 @router.get("/queue")
 async def invoice_queue(status: str = "all") -> Any:
     if status == "all":
+        # Two service calls merged into one view. The ordering must mirror the
+        # service's own queue order: confident captures first, oldest first
+        # within a confidence tie.
         pending = await _request(
             "GET", "/api/v1/queue", params={"status": "pending_review"}
         )
@@ -56,7 +64,7 @@ async def invoice_queue(status: str = "all") -> Any:
             "GET", "/api/v1/queue", params={"status": "needs_attention"}
         )
         items = [*pending["items"], *attention["items"]]
-        items.sort(key=lambda item: (item["confidence"], item["created_at"]))
+        items.sort(key=lambda item: (-item["confidence"], item["created_at"]))
         return {"count": len(items), "items": items}
     return await _request("GET", "/api/v1/queue", params={"status": status})
 
