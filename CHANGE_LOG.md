@@ -85,6 +85,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   internal-token reviewer contract).
 
 ### Changed
+- `infra/docker-compose.yml`: removed the redundant `frontend-node-modules`
+  named volume. Frontend dependencies now come from the image (so
+  `up --build` picks up lockfile changes without a stale volume shadowing
+  them); only the regenerable Vite pre-bundle cache remains volume-backed.
+  `infra/README.md` documents the change.
 - `infra/docker-compose.yml`: the shared invoice-service token is no longer
   hard-coded. Both services load an optional, gitignored per-service `.env`
   through Compose `env_file` (`backend/.env`, `invoice-service/.env`), keeping

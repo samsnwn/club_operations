@@ -30,12 +30,7 @@ export function Login({ onLogin }: Props) {
 
   return (
     <section className="auth-card" aria-label="Sign in">
-      <p className="eyebrow">Blue Velvet · Phase 0.5</p>
       <h1>Sign in</h1>
-      <p className="auth-hint">
-        Internal accounts are created by an administrator. There is no
-        self-registration.
-      </p>
       <form className="auth-form" onSubmit={(event) => void submit(event)}>
         <label>
           Username
