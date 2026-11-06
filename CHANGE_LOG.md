@@ -85,6 +85,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   internal-token reviewer contract).
 
 ### Changed
+- `infra/docker-compose.yml`: the shared invoice-service token is no longer
+  hard-coded. Both services load an optional, gitignored per-service `.env`
+  through Compose `env_file` (`backend/.env`, `invoice-service/.env`), keeping
+  the token and other overrides out of the compose file. `infra/README.md` and
+  `AGENTS.md` document the copy step and the matching-token requirement.
 - Invoice routes are now authenticated and role-gated: every frontend call
   goes through the backend facade, which requires an owner or admin
   (`require_role("owner", "admin")`) and forwards that user's username to the

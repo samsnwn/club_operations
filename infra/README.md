@@ -14,6 +14,21 @@ Compose file: `docker-compose.yml` (project name `blue-velvet`).
 
 Both services build from `dev` targets of their Dockerfiles.
 
+### Environment and secrets
+
+Each service loads an optional, gitignored `.env` through Compose `env_file`:
+
+    cp backend/.env.example backend/.env
+    cp invoice-service/.env.example invoice-service/.env
+
+Neither file is required (`required: false`): without them the services use
+development-safe defaults. When present they carry overrides such as the shared
+service token, SMTP credentials and cookie/origin settings.
+`backend/.env` `INVOICE_SERVICE_TOKEN` must equal `invoice-service/.env`
+`INVOICE_INTERNAL_TOKEN`; the token is deliberately **not** hard-coded in the
+compose file. The `.env` files are read on the host and injected into the
+containers — they are never bind-mounted or committed.
+
 | Service | Build context | Port | Binds (hot reload) | Volumes |
 | --- | --- | --- | --- | --- |
 | `backend` | `backend/Dockerfile` — uv-based, `alembic upgrade head` runs at start | `:8080` | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `db-data:/data` (SQLite) |
