@@ -18,6 +18,7 @@ from app.ingestion.fixtures import FixtureSource
 from app.ingestion.pipeline import ingest_file, poll_sources
 from app.models.invoice import Invoice
 from app.notify.digest import build_digest
+from app.review.routes import MAX_REVIEWER_LENGTH
 
 OWNER_TOKEN = "owner-test-token"
 ADMIN_TOKEN = "admin-test-token"
@@ -93,6 +94,67 @@ def test_oversized_capture_is_rejected_before_storage(
 
 def test_queue_requires_token(client: TestClient) -> None:
     assert client.get("/api/v1/queue").status_code == 401
+
+
+def _first_queue_item(client: TestClient) -> dict:
+    return client.get(
+        "/api/v1/queue", headers={"Authorization": f"Bearer {OWNER_TOKEN}"}
+    ).json()["items"][0]
+
+
+def test_facade_reviewer_header_marks_confirming_user(
+    client: TestClient, db: Session
+) -> None:
+    """The backend facade sends the authenticated username; confirm records it."""
+    run_fixture_ingest(db)
+    target = _first_queue_item(client)
+    response = client.post(
+        f"/api/v1/queue/{target['id']}/confirm",
+        headers={
+            "Authorization": f"Bearer {get_settings().internal_token}",
+            "X-Reviewer": "owner",
+        },
+        json={},
+    )
+    assert response.status_code == 200
+    assert response.json()["reviewed_by"] == "owner"
+    db.expire_all()
+    assert db.get(Invoice, target["id"]).reviewed_by == "owner"
+
+
+def test_internal_token_without_reviewer_header_is_backend(
+    client: TestClient, db: Session
+) -> None:
+    """Scheduled/system actions carry no user identity and stay attributed."""
+    run_fixture_ingest(db)
+    target = _first_queue_item(client)
+    response = client.post(
+        f"/api/v1/queue/{target['id']}/confirm",
+        headers={"Authorization": f"Bearer {get_settings().internal_token}"},
+        json={},
+    )
+    assert response.json()["reviewed_by"] == "backend"
+
+
+def test_reviewer_header_alone_does_not_authenticate(client: TestClient) -> None:
+    assert (
+        client.get("/api/v1/queue", headers={"X-Reviewer": "owner"}).status_code == 401
+    )
+
+
+def test_reviewer_header_is_trimmed_and_capped(client: TestClient, db: Session) -> None:
+    """The forwarded name is normalised and fits `reviewed_by` (String(64))."""
+    run_fixture_ingest(db)
+    target = _first_queue_item(client)
+    response = client.post(
+        f"/api/v1/queue/{target['id']}/confirm",
+        headers={
+            "Authorization": f"Bearer {get_settings().internal_token}",
+            "X-Reviewer": f"  {'x' * 100}  ",
+        },
+        json={},
+    )
+    assert response.json()["reviewed_by"] == "x" * MAX_REVIEWER_LENGTH
 
 
 def test_review_flow_confirm_with_corrections(client: TestClient, db: Session) -> None:

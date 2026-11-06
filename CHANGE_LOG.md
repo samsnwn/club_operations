@@ -34,6 +34,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   caller; the test path builds its sources directly).
 
 ### Added
+- Internal authentication for the platform: `User` and `AuthSession` models
+  with an Alembic migration (`5ea31f09edc2`), Argon2id password hashing,
+  opaque database-backed sessions (only the SHA-256 token hash is stored) in
+  an HttpOnly, `SameSite=Lax` cookie, and an Origin-check middleware for
+  state-changing requests. Auth routes: `POST /api/v1/auth/login`,
+  `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`,
+  `POST /api/v1/auth/password`. Dependencies `authenticated_user` (any active
+  session), `current_user` (blocks `must_change_password` with `403`) and
+  `require_role(...)`.
+- CLI `python -m app.cli create-user` / `reset-password` (`backend/app/cli.py`)
+  for first-owner bootstrap and password recovery; no environment auto-seeding.
+- Account-management API under `/api/v1/users` (list, create, patch, reset
+  password): owners manage every account, admins manage `staff` only, no one
+  changes their own role or deactivates themselves, and the last active owner
+  cannot be removed or demoted. Role changes, deactivation and password resets
+  revoke existing sessions.
+- Frontend authentication flow: `api.ts` (typed fetch + `ApiError`), `auth.ts`
+  (typed auth/user calls), `Login.tsx`, `ChangePassword.tsx` (forced and
+  voluntary), `StaffPanel.tsx` (create accounts, change roles, activate/
+  deactivate, reset passwords) and `InvoiceWorkspace.tsx` (existing review UI
+  extracted). `App.tsx` restores the session on load, enforces the first-sign-in
+  password change, exposes role-aware navigation, and returns to the login
+  screen on session expiry.
+- Invoice-service reviewer attribution: confirm/reject record `reviewed_by`
+  from `X-Reviewer` **only** when the request also carries a valid internal
+  token; token-only calls remain attributed to `backend`. The backend facade
+  derives the header from the authenticated session.
+- Backend tests for auth, account management, CLI and facade identity
+  forwarding (`test_auth.py`, `test_users.py`, `test_cli.py`,
+  `test_invoices_facade.py`, including staff denial and admin access on every
+  invoice route) plus a shared `tests/conftest.py`.
 - Backend facade tests (`backend/tests/test_invoices_facade.py`) exercising
   the real HTTP behaviour via `httpx.MockTransport` through a `_client()` test
   seam: merged-queue ordering (including confidence ties), status pass-through,
@@ -48,6 +79,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   internal-token reviewer contract).
 
 ### Changed
+- Invoice routes are now authenticated and role-gated: every frontend call
+  goes through the backend facade, which requires an owner or admin
+  (`require_role("owner", "admin")`) and forwards that user's username to the
+  invoice service as `X-Reviewer`, ignoring any client-supplied header. Staff
+  accounts receive `403` on every `/api/v1/invoices/*` route, and the frontend
+  hides invoice navigation from them. Direct service calls still work with the
+  internal token but are attributed to `backend`. The invoice service (`:8081`)
+  must therefore stay internal-only.
+- README §Phase 0.5 documents the implemented internal authentication,
+  roles and production requirements; `docs/architecture.md` gains an
+  authentication/trust-boundary section; `invoice-service/README.md` documents
+  the `X-Reviewer` contract; `docs/next-steps.md` marks the authentication item
+  done.
 - `frontend/src/App.tsx`: queue loading runs through a single `useCallback`
   `loadQueue()` instead of a duplicated inline fetch in the mount effect, and
   the header button label reflects actual import runs only (a dedicated

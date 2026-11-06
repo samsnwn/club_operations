@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     invoice_service_url: str = "http://localhost:8081"
     invoice_service_token: str = "development-invoice-service-token"
 
+    # Internal auth: opaque database sessions in an HttpOnly cookie.
+    session_ttl_hours: int = 12
+    # Set true once the app is served over HTTPS.
+    session_cookie_secure: bool = False
+    # Comma-separated browser origins allowed to send state-changing requests.
+    # Same-origin requests are always allowed; the dev frontend is the default.
+    allowed_origins: str = "http://localhost:5173"
+
 
 @lru_cache
 def get_settings() -> Settings:
