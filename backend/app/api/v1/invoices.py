@@ -1,18 +1,33 @@
-"""Public invoice facade; the invoice service remains the implementation."""
+"""Public invoice facade; the invoice service remains the implementation.
 
-from typing import Any
+Every request is made on behalf of a signed-in user: the facade forwards the
+internal service token **and** the caller's username, which the invoice service
+uses to attribute confirm/reject actions. The username is taken from the
+authenticated session, never from an inbound header.
+"""
+
+from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
+from app.auth.dependencies import require_role
 from app.core.config import get_settings
+from app.models import User
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
+# Invoice review is an owner/admin capability. Staff accounts can sign in and
+# manage their own password, but have no access to invoice data.
+InvoiceReviewer = Annotated[User, Depends(require_role("owner", "admin"))]
 
-def _service_headers() -> dict[str, str]:
-    return {"Authorization": f"Bearer {get_settings().invoice_service_token}"}
+
+def _service_headers(reviewer: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {get_settings().invoice_service_token}",
+        "X-Reviewer": reviewer,
+    }
 
 
 def _client() -> httpx.AsyncClient:
@@ -24,6 +39,7 @@ async def _request(
     method: str,
     path: str,
     *,
+    reviewer: str,
     json: dict[str, Any] | None = None,
     params: dict[str, str] | None = None,
     raw_response: bool = False,
@@ -33,7 +49,11 @@ async def _request(
     try:
         async with _client() as client:
             response = await client.request(
-                method, url, headers=_service_headers(), json=json, params=params
+                method,
+                url,
+                headers=_service_headers(reviewer),
+                json=json,
+                params=params,
             )
     except httpx.RequestError as exc:
         raise HTTPException(
@@ -47,38 +67,52 @@ async def _request(
 
 
 @router.post("/import")
-async def import_invoices() -> dict:
-    return await _request("POST", "/api/v1/internal/invoices/import")
+async def import_invoices(user: InvoiceReviewer) -> dict:
+    return await _request(
+        "POST", "/api/v1/internal/invoices/import", reviewer=user.username
+    )
 
 
 @router.get("/queue")
-async def invoice_queue(status: str = "all") -> Any:
+async def invoice_queue(user: InvoiceReviewer, status: str = "all") -> Any:
     if status == "all":
         # Two service calls merged into one view. The ordering must mirror the
         # service's own queue order: confident captures first, oldest first
         # within a confidence tie.
         pending = await _request(
-            "GET", "/api/v1/queue", params={"status": "pending_review"}
+            "GET",
+            "/api/v1/queue",
+            reviewer=user.username,
+            params={"status": "pending_review"},
         )
         attention = await _request(
-            "GET", "/api/v1/queue", params={"status": "needs_attention"}
+            "GET",
+            "/api/v1/queue",
+            reviewer=user.username,
+            params={"status": "needs_attention"},
         )
         items = [*pending["items"], *attention["items"]]
         items.sort(key=lambda item: (-item["confidence"], item["created_at"]))
         return {"count": len(items), "items": items}
-    return await _request("GET", "/api/v1/queue", params={"status": status})
+    return await _request(
+        "GET",
+        "/api/v1/queue",
+        reviewer=user.username,
+        params={"status": status},
+    )
 
 
 @router.get("/{invoice_id}")
-async def invoice_detail(invoice_id: int) -> Any:
-    return await _request("GET", f"/api/v1/queue/{invoice_id}")
+async def invoice_detail(invoice_id: int, user: InvoiceReviewer) -> Any:
+    return await _request("GET", f"/api/v1/queue/{invoice_id}", reviewer=user.username)
 
 
 @router.get("/{invoice_id}/original")
-async def invoice_original(invoice_id: int) -> Response:
+async def invoice_original(invoice_id: int, user: InvoiceReviewer) -> Response:
     response = await _request(
         "GET",
         f"/api/v1/internal/invoices/{invoice_id}/original",
+        reviewer=user.username,
         raw_response=True,
     )
     return Response(
@@ -89,10 +123,21 @@ async def invoice_original(invoice_id: int) -> Response:
 
 
 @router.post("/{invoice_id}/confirm")
-async def confirm_invoice(invoice_id: int, payload: dict[str, Any]) -> Any:
-    return await _request("POST", f"/api/v1/queue/{invoice_id}/confirm", json=payload)
+async def confirm_invoice(
+    invoice_id: int,
+    payload: dict[str, Any],
+    user: InvoiceReviewer,
+) -> Any:
+    return await _request(
+        "POST",
+        f"/api/v1/queue/{invoice_id}/confirm",
+        reviewer=user.username,
+        json=payload,
+    )
 
 
 @router.post("/{invoice_id}/reject")
-async def reject_invoice(invoice_id: int) -> Any:
-    return await _request("POST", f"/api/v1/queue/{invoice_id}/reject")
+async def reject_invoice(invoice_id: int, user: InvoiceReviewer) -> Any:
+    return await _request(
+        "POST", f"/api/v1/queue/{invoice_id}/reject", reviewer=user.username
+    )

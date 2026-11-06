@@ -48,6 +48,16 @@ For a real-invoice demonstration, copy PDFs or images into
 gitignored and bind-mounted into Docker. Imported originals remain in the
 service's data volume and can be previewed from the review screen.
 
+## Reviewer attribution
+
+`POST /api/v1/queue/{id}/confirm` and `/reject` record a `reviewed_by` value.
+The internal bearer token alone attributes the action to `backend`; when the
+backend facade also sends an `X-Reviewer` header, that username is used
+instead. The header is trusted **only** alongside a valid internal token —
+never for unauthenticated or browser-direct calls. Through the main platform,
+the facade derives `X-Reviewer` from the signed-in session, so reviewers are
+attributed to their own accounts.
+
 ## Tests
 
 ```bash

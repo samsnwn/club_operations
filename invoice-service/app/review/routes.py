@@ -1,6 +1,8 @@
 """Review queue API (README §Phase 0.5): list pending items, inspect one with
-the extracted suggestions, confirm/correct/reject. Auth: simple per-user
-bearer tokens (owner + one admin — owner answer #5).
+the extracted suggestions, confirm/correct/reject. Auth: the backend facade
+authenticates the user and forwards the username in `X-Reviewer`; that header
+is only trusted together with the internal service token. Per-user bearer
+tokens (owner + one admin — owner answer #5) remain as a direct-use fallback.
 
 Only CONFIRMED invoices are eligible for export — the human review point is
 the gate between extraction and the accounting sheet (hard rule 1).
@@ -34,6 +36,9 @@ FINAL_FIELDS = (
     "description",
 )
 
+# `reviewed_by` is String(64) in the model; keep the forwarded identity within it.
+MAX_REVIEWER_LENGTH = 64
+
 
 def internal_token(authorization: Annotated[str | None, Header()] = None) -> None:
     expected = get_settings().internal_token
@@ -42,12 +47,21 @@ def internal_token(authorization: Annotated[str | None, Header()] = None) -> Non
         raise HTTPException(status_code=401, detail="Invalid internal service token")
 
 
-def current_reviewer(authorization: Annotated[str | None, Header()] = None) -> str:
-    expected = get_settings().review_tokens
+def current_reviewer(
+    authorization: Annotated[str | None, Header()] = None,
+    x_reviewer: Annotated[str | None, Header()] = None,
+) -> str:
+    """Resolve the reviewing identity.
+
+    The backend facade holds the internal token and forwards the authenticated
+    username as `X-Reviewer`; a bare header never authenticates. Requests
+    without the header (scheduled/system work) are attributed to "backend".
+    """
     token = authorization.removeprefix("Bearer ").strip() if authorization else ""
     if token and token == get_settings().internal_token:
-        return "backend"
-    for username, expected_token in expected.items():
+        reviewer = (x_reviewer or "").strip()
+        return reviewer[:MAX_REVIEWER_LENGTH] if reviewer else "backend"
+    for username, expected_token in get_settings().review_tokens.items():
         if token and token == expected_token:
             return username
     raise HTTPException(status_code=401, detail="Unrecognised reviewer token")

@@ -654,7 +654,7 @@ Development should happen in stages, with a usable result delivered as early as 
 
 The club owner has requested an immediate, focused tool: a service that reads an email account and/or a Google Drive folder, scans incoming invoices, and puts their data into the Excel sheet he already uses for accounting, which already has its columns defined.
 
-This is deliberately built before the main platform foundation. It requires no PWA, no authentication and no offline functionality, and it delivers visible value to the owner early. The components built here — document ingestion, invoice storage, field extraction and spreadsheet export — will later flow directly into the Documents (4.9), Inventory and Finance (4.8) modules rather than being throwaway work.
+This is deliberately built before the main platform foundation. It needs no PWA and no offline functionality, and it delivers visible value to the owner early. Internal authentication was added once reviewer attribution became necessary; it is self-managed by the backend and shared with the main platform. The components built here — document ingestion, invoice storage, field extraction and spreadsheet export — will later flow directly into the Documents (4.9), Inventory and Finance (4.8) modules rather than being throwaway work.
 
 The service is essentially a small independent Python pipeline:
 
@@ -736,7 +736,10 @@ below is written against them and will be adjusted where reality differs.
    the real sheet before the first write is switched on** (export stays
    feature-flagged off until then).
 5. **Access:** the owner and one admin staff member, each with their own
-   review-queue credentials. No broader RBAC in this service.
+   account. Accounts are created by an administrator — there is no
+   self-registration. Roles are `owner` (manages every account), `admin`
+   (manages staff accounts) and `staff` (sign-in only). No broader RBAC in
+   this service.
 6. **Volume:** ~20 invoices/month from a small number of suppliers → a
    nightly batch (and catch-up polling) is entirely sufficient; tables are
    sized accordingly.
@@ -755,12 +758,40 @@ everything). Collapsed digest notifications: a quiet period produces one
 "everything since last review" summary. This upgrades to a dedicated always-on
 box with no rework the moment the hardware exists.
 
+#### Internal authentication (implemented 2026-11-06)
+
+- Accounts are self-managed by the backend: a `users` table with Argon2id
+  password hashes and database-backed sessions. There is no external identity
+  provider and **no public registration**.
+- The first owner is bootstrapped with
+  `uv run python -m app.cli create-user --username owner --role owner`.
+  Everyone else is created by an owner or admin from the **Staff** screen; new
+  accounts receive a temporary password and must choose their own at first
+  sign-in.
+- Roles: `owner` manages every account, `admin` manages staff accounts, and
+  `staff` can sign in and change their own password. **Invoice review is
+  limited to owners and administrators**; staff accounts have no access to
+  invoice data or the staff panel.
+- The browser holds an opaque session token in an HttpOnly, `SameSite=Lax`
+  cookie. `POST /api/v1/auth/login`, `/logout`, `/me` and `/password` are the
+  only auth endpoints; state-changing requests from unknown origins are
+  rejected.
+- The backend facade authenticates the browser and forwards the username to
+  the invoice service as `X-Reviewer`, together with the internal service
+  token. The invoice service trusts that header **only** alongside the token
+  and records it in `reviewed_by`; a token-only call stays attributed to
+  `backend`.
+- Production requirements: serve over HTTPS and set
+  `SESSION_COOKIE_SECURE=true`; set `ALLOWED_ORIGINS` to the real frontend
+  origin; and keep the invoice service (`:8081`) internal-only, because its
+  internal token bypasses the facade's authentication.
+
 ### Phase 1 — Project Foundation
 
 - Set up repository and project structure.
 - Configure frontend and backend.
 - Establish database and migrations.
-- Implement authentication.
+- Implement authentication. — done early (2026-11-06) for the Phase 0.5 quick win; see §Phase 0.5, "Internal authentication".
 - Implement permissions.
 - Create the initial API structure.
 - Configure Docker Compose.

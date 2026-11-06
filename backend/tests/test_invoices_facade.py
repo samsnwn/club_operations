@@ -4,6 +4,8 @@
 # `_client()` test seam: request paths, forwarded auth headers, queue merge
 # ordering and error mapping are all asserted against recorded requests.
 
+import json
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
@@ -11,8 +13,28 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.v1 import invoices
+from app.auth.dependencies import current_user
 from app.core.config import get_settings
 from app.main import app
+from app.models import User
+
+TEST_USER = User(
+    id=1,
+    username="tester",
+    password_hash="unused",
+    role="owner",
+    is_active=True,
+    must_change_password=False,
+)
+
+
+@pytest.fixture(autouse=True)
+def _authenticated() -> Iterator[None]:
+    """Facade behaviour is tested independently of the login flow."""
+    app.dependency_overrides[current_user] = lambda: TEST_USER
+    yield
+    app.dependency_overrides.pop(current_user, None)
+
 
 client = TestClient(app)
 
@@ -24,6 +46,56 @@ def _use_service(monkeypatch: pytest.MonkeyPatch, handler: Any) -> None:
         return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
     monkeypatch.setattr(invoices, "_client", factory)
+
+
+def test_staff_cannot_reach_invoice_routes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Staff accounts may sign in, but invoice data is owner/admin only."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("the invoice service must not be called for staff")
+
+    _use_service(monkeypatch, handler)
+    staff = User(
+        id=2,
+        username="staffer",
+        password_hash="unused",
+        role="staff",
+        is_active=True,
+        must_change_password=False,
+    )
+    app.dependency_overrides[current_user] = lambda: staff
+    try:
+        assert client.get("/api/v1/invoices/queue").status_code == 403
+        assert client.post("/api/v1/invoices/import").status_code == 403
+    finally:
+        app.dependency_overrides[current_user] = lambda: TEST_USER
+
+
+def test_admin_can_reach_invoice_routes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"count": 0, "items": []})
+
+    _use_service(monkeypatch, handler)
+    admin = User(
+        id=3,
+        username="admin1",
+        password_hash="unused",
+        role="admin",
+        is_active=True,
+        must_change_password=False,
+    )
+    app.dependency_overrides[current_user] = lambda: admin
+    try:
+        assert (
+            client.get("/api/v1/invoices/queue?status=pending_review").status_code
+            == 200
+        )
+    finally:
+        app.dependency_overrides[current_user] = lambda: TEST_USER
 
 
 def test_queue_merges_statuses_confident_first(
@@ -87,6 +159,7 @@ def test_facade_forwards_internal_service_token(
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen["authorization"] = request.headers.get("authorization")
+        seen["reviewer"] = request.headers.get("x-reviewer")
         seen["path"] = request.url.path
         return httpx.Response(200, json={"count": 0, "items": []})
 
@@ -94,6 +167,51 @@ def test_facade_forwards_internal_service_token(
     assert client.get("/api/v1/invoices/queue?status=pending_review").status_code == 200
     assert seen["path"] == "/api/v1/queue"
     assert seen["authorization"] == f"Bearer {get_settings().invoice_service_token}"
+    assert seen["reviewer"] == "tester"
+
+
+def test_facade_ignores_client_supplied_reviewer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, str | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["reviewer"] = request.headers.get("x-reviewer")
+        return httpx.Response(200, json={"count": 0, "items": []})
+
+    _use_service(monkeypatch, handler)
+    response = client.get(
+        "/api/v1/invoices/queue?status=pending_review",
+        headers={"X-Reviewer": "someone-else"},
+    )
+
+    assert response.status_code == 200
+    assert seen["reviewer"] == "tester"
+
+
+def test_confirm_forwards_reviewer_and_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["reviewer"] = request.headers.get("x-reviewer")
+        seen["path"] = request.url.path
+        seen["json"] = request.content
+        return httpx.Response(
+            200, json={"id": 7, "status": "confirmed", "reviewed_by": "tester"}
+        )
+
+    _use_service(monkeypatch, handler)
+    response = client.post(
+        "/api/v1/invoices/7/confirm", json={"gross": 1190.0, "supplier": "Muster"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["reviewed_by"] == "tester"
+    assert seen["reviewer"] == "tester"
+    assert seen["path"] == "/api/v1/queue/7/confirm"
+    assert json.loads(seen["json"]) == {"gross": 1190.0, "supplier": "Muster"}
 
 
 def test_import_hits_internal_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
