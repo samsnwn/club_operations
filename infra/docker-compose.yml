@@ -14,11 +14,15 @@ services:
     init: true
     ports:
       - "8080:8080"
+    env_file:
+      # Gitignored service settings (auth config + invoice-service token), so
+      # no secret is hard-coded in this file. Copy backend/.env.example first.
+      - path: ../backend/.env
+        required: false
     environment:
       # Keep SQLite inside the container's named volume, not a bind mount.
       DATABASE_URL: "sqlite:////data/blue_velvet.db"
       INVOICE_SERVICE_URL: "http://invoice-service:8081"
-      INVOICE_SERVICE_TOKEN: "development-invoice-service-token"
     volumes:
       - backend-db-data:/data
       # Source binds for StatReload hot reload (application code, tests, and
@@ -62,8 +66,11 @@ services:
     init: true
     ports:
       - "8081:8081"
-    environment:
-      INVOICE_INTERNAL_TOKEN: "development-invoice-service-token"
+    env_file:
+      # Gitignored service settings, including INVOICE_INTERNAL_TOKEN; the
+      # token must match backend/.env INVOICE_SERVICE_TOKEN.
+      - path: ../invoice-service/.env
+        required: false
     volumes:
       - invoice-data:/app/data
       - ../invoice-service/data/inbox:/app/data/inbox
