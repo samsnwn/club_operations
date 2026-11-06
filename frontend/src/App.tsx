@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import './App.css';
 
 type Invoice = {
@@ -45,8 +45,9 @@ function App() {
   const [values, setValues] = useState<ReviewValues>({});
   const [message, setMessage] = useState('Loading review queue…');
   const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
 
-  const loadQueue = async () => {
+  const loadQueue = useCallback(async () => {
     try {
       const queue = await request<QueueResponse>('/invoices/queue');
       setInvoices(queue.items);
@@ -58,22 +59,13 @@ function App() {
         error instanceof Error ? error.message : 'Unable to load invoices',
       );
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void request<QueueResponse>('/invoices/queue')
-      .then((queue) => {
-        setInvoices(queue.items);
-        setMessage(
-          `${queue.count} invoice${queue.count === 1 ? '' : 's'} awaiting review`,
-        );
-      })
-      .catch((error: unknown) => {
-        setMessage(
-          error instanceof Error ? error.message : 'Unable to load invoices',
-        );
-      });
-  }, []);
+    // Same refresh as every later one, deferred a tick so the mount fetch is
+    // an async continuation rather than a synchronous effect body call.
+    void Promise.resolve().then(loadQueue);
+  }, [loadQueue]);
 
   const selectInvoice = async (id: number) => {
     setBusy(true);
@@ -140,6 +132,7 @@ function App() {
 
   const importInvoices = async () => {
     setBusy(true);
+    setImporting(true);
     try {
       const result = await request<{ new_invoices: number }>(
         '/invoices/import',
@@ -154,6 +147,7 @@ function App() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Import failed');
     } finally {
+      setImporting(false);
       setBusy(false);
     }
   };
@@ -188,7 +182,7 @@ function App() {
           onClick={() => void importInvoices()}
           disabled={busy}
         >
-          {busy ? 'Importing…' : 'Import invoices'}
+          {importing ? 'Importing…' : 'Import invoices'}
         </button>
       </header>
       <p className="status" role="status">

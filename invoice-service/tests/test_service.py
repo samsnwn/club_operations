@@ -1,6 +1,7 @@
 # Invoice service — API + pipeline tests against a temporary SQLite store.
 
 import os
+import time
 from pathlib import Path
 from tempfile import mkdtemp
 
@@ -123,3 +124,86 @@ def test_digest_lists_pending(db: Session) -> None:
     body = build_digest(db)
     assert "review" in body
     assert "Not recognised automatically" in body
+
+
+def _age_file(path: Path, seconds: float) -> None:
+    """Pretend the file has been untouched for `seconds` (settled capture)."""
+    then = time.time() - seconds
+    os.utime(path, (then, then))
+
+
+def test_internal_import_requires_internal_token(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("INVOICE_INBOX_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    try:
+        assert client.post("/api/v1/internal/invoices/import").status_code == 401
+    finally:
+        get_settings.cache_clear()
+
+
+def test_internal_import_ingests_settled_inbox(
+    client: TestClient, db: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Endpoint-level drop-folder flow: settled file → review row, and a
+    second import is a content-hash no-op."""
+    invoice_file = tmp_path / "2026-11-04-muster.txt"
+    invoice_file.write_bytes(
+        b"Musterveu GmbH\nRechnungs-Nr: 2026-118\nNetto: 1.000,00\nGesamt: 1.190,00\n"
+    )
+    _age_file(invoice_file, 7200.0)
+    monkeypatch.setenv("INVOICE_INBOX_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    try:
+        headers = {"Authorization": f"Bearer {get_settings().internal_token}"}
+        assert client.post(
+            "/api/v1/internal/invoices/import", headers=headers
+        ).json() == {"new_invoices": 1}
+        assert client.post(
+            "/api/v1/internal/invoices/import", headers=headers
+        ).json() == {"new_invoices": 0}
+    finally:
+        get_settings.cache_clear()
+    assert db.query(Invoice).count() == 1
+
+
+def test_internal_token_acts_as_reviewer(client: TestClient) -> None:
+    """The backend facade holds only the internal token; today it may review
+    through the queue endpoints (until authentication lands)."""
+    headers = {"Authorization": f"Bearer {get_settings().internal_token}"}
+    assert client.get("/api/v1/queue", headers=headers).status_code == 200
+
+
+def test_internal_original_requires_internal_token(client: TestClient) -> None:
+    assert client.get("/api/v1/internal/invoices/1/original").status_code == 401
+
+
+def test_internal_original_unknown_invoice(client: TestClient) -> None:
+    headers = {"Authorization": f"Bearer {get_settings().internal_token}"}
+    assert (
+        client.get(
+            "/api/v1/internal/invoices/9999/original", headers=headers
+        ).status_code
+        == 404
+    )
+
+
+def test_internal_original_serves_stored_capture(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    content = b"%PDF-1.5 handwritten test capture"
+    monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(mkdtemp()))
+    get_settings.cache_clear()
+    try:
+        assert ingest_file(db, CapturedTestFile(content))
+        invoice = db.query(Invoice).one()
+        headers = {"Authorization": f"Bearer {get_settings().internal_token}"}
+        response = client.get(
+            f"/api/v1/internal/invoices/{invoice.id}/original", headers=headers
+        )
+        assert response.status_code == 200
+        assert response.content == content
+        assert response.headers["content-type"] == "application/pdf"
+    finally:
+        get_settings.cache_clear()

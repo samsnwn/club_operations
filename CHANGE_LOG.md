@@ -4,6 +4,55 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project currently has no runtime releases, so entries are dated by change.
 
+## [2026-11-06]
+
+### Fixed
+- Backend invoice facade queue: the merged `"all"` view was sorted ascending
+  by confidence — the reverse of the invoice service's own order ("confident
+  captures first") and inconsistent with the single-status path of the same
+  endpoint. It now mirrors the service ordering exactly (confidence
+  descending, oldest first within a confidence tie).
+- Invoice-service drop-folder ingestion (`data/inbox/`) hardened against the
+  realistic demonstration race: a file that is still being written (mid-copy
+  into the folder) is normally not ingested truncated. A file is captured
+  once observed with an unchanged size and modification time twice, or once
+  untouched for longer than a short settle window (`SETTLE_SECONDS = 5`).
+  This is best-effort, not a guarantee: a copy that stalls between polls, or
+  one whose modification time is preserved by the producer (`cp -p`, `rsync`,
+  `unzip`), can still be captured mid-flight and produce a second row when it
+  completes (documented in the module's known-limitation note). A file copied
+  less than the settle window before an Import click is withheld until a
+  later poll. Hidden files (`.DS_Store` etc.) and subdirectories are never
+  captured, files above `INVOICE_MAX_ATTACHMENT_BYTES` are skipped before
+  being read into memory, and files that vanish between stat and read are
+  tolerated (warned and skipped). The per-directory-and-size-limit source
+  instance is reused between import calls so its observed state survives
+  across Import clicks.
+
+### Removed
+- Unused `poll_fixture_source()` helper from the ingestion pipeline (no
+  caller; the test path builds its sources directly).
+
+### Added
+- Backend facade tests (`backend/tests/test_invoices_facade.py`) exercising
+  the real HTTP behaviour via `httpx.MockTransport` through a `_client()` test
+  seam: merged-queue ordering (including confidence ties), status pass-through,
+  internal-token forwarding, import route mapping, 503 on an unreachable
+  service, upstream error-status pass-through, and inline streaming of the
+  original attachment.
+- Invoice-service tests: drop-folder settle rules (`tests/test_drop_folder.py`
+  — partial-write race, hidden/non-file entries, double-observation capture,
+  size skip) and internal endpoint coverage (`/internal/invoices/import`
+  requiring the internal token + hash dedupe, `/internal/invoices/{id}/original`
+  serving stored captures with sniffed media type, 401/404 paths, and the
+  internal-token reviewer contract).
+
+### Changed
+- `frontend/src/App.tsx`: queue loading runs through a single `useCallback`
+  `loadQueue()` instead of a duplicated inline fetch in the mount effect, and
+  the header button label reflects actual import runs only (a dedicated
+  `importing` state instead of sharing the generic busy flag).
+
 ## [2026-11-05]
 
 ### Added
@@ -33,9 +82,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   schema before the proxy serves requests.
 - Added the first invoice-focused application slice: the frontend calls a thin
   backend invoice facade, which proxies to the separate invoice service using
-  an internal development token. The frontend currently supports importing,
-  viewing the review queue, and rejecting invoices; end-user authentication
-  and invoice confirmation UI remain next steps.
+  an internal development token. The frontend supports importing, the review
+  queue with extracted-text inspection, confirming/correcting, and rejecting
+  invoices; end-user authentication and role permissions remain next steps.
 - `frontend/vite.config.ts`: Vite proxy target now reads `BACKEND_URL` (defaults to `http://localhost:8080` on the host; docker compose sets `http://backend:8080`), so the same config wires same-origin `/api` requests correctly on host and in Docker. The proxy forwards to `http://localhost:8000` initially (no path rewrite; backend routes already start with `/api`); no CORS middleware needed in dev.
 - `AGENTS.md` Command section reorganised: Docker Compose dev commands are now the primary documented dev path (`up -d --build` / `logs -f` / in-container `alembic revision` / `down`), with the host `uv` workflow kept below for CI-parity checks.
 - Backend dev port moved from `8000` to `8080` (`uvicorn --port 8080`, `backend/README.md`, `AGENTS.md`, frontend Vite proxy target): OpenCode's built-in vLLM provider discovery probes `http://127.0.0.1:8000/v1` by default, which spammed the dev server with `/health` + `/v1/models` requests. The temporary 404-logging diagnostic middleware was removed again; port `8080` is outside OpenCode's local-discovery defaults.
