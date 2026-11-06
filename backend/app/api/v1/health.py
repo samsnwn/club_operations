@@ -1,5 +1,7 @@
 """Health-check endpoints used by monitoring and deployment checks."""
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -16,6 +18,6 @@ def check_health(db: Session) -> dict:
 
 
 @router.get("/health")
-def health(db: Session = Depends(get_db)) -> dict:
+def health(db: Annotated[Session, Depends(get_db)]) -> dict:
     """Versioned health endpoint under `/api/v1/`."""
     return check_health(db)

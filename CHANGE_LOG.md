@@ -21,6 +21,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 - Ruff (Black-style formatter) added as a dev dependency to both Python services (`backend/`, `invoice-service/`); the root `pnpm format` / `pnpm format:check` scripts now run Prettier **and** `ruff format` in one command, giving the repo a single unified formatting entry point while keeping language-native toolchains (Prettier has no Python parser, and the community's output standard for Python is Black-style, so a Prettier plugin would fight the Python ecosystem). First pass reformatted 10 Python files; backend and invoice-service test suites still green.
 
 ### Changed
+- Added a gitignored local drop folder at `invoice-service/data/inbox/` for
+  real-invoice demonstrations. The import flow now reads new PDFs/images from
+  that folder, stores originals in the invoice volume, and previews them in
+  the review screen.
+- Completed the invoice review UI: the queue includes both pending and
+  attention-needed items, and reviewers can inspect extracted text, correct
+  fields, confirm invoices, or reject them through the backend facade.
+- Fixed the invoice-service Alembic baseline by adding the missing invoice and
+  sync-watermark tables, allowing the Docker startup migration to create the
+  schema before the proxy serves requests.
+- Added the first invoice-focused application slice: the frontend calls a thin
+  backend invoice facade, which proxies to the separate invoice service using
+  an internal development token. The frontend currently supports importing,
+  viewing the review queue, and rejecting invoices; end-user authentication
+  and invoice confirmation UI remain next steps.
 - `frontend/vite.config.ts`: Vite proxy target now reads `BACKEND_URL` (defaults to `http://localhost:8080` on the host; docker compose sets `http://backend:8080`), so the same config wires same-origin `/api` requests correctly on host and in Docker. The proxy forwards to `http://localhost:8000` initially (no path rewrite; backend routes already start with `/api`); no CORS middleware needed in dev.
 - `AGENTS.md` Command section reorganised: Docker Compose dev commands are now the primary documented dev path (`up -d --build` / `logs -f` / in-container `alembic revision` / `down`), with the host `uv` workflow kept below for CI-parity checks.
 - Backend dev port moved from `8000` to `8080` (`uvicorn --port 8080`, `backend/README.md`, `AGENTS.md`, frontend Vite proxy target): OpenCode's built-in vLLM provider discovery probes `http://127.0.0.1:8000/v1` by default, which spammed the dev server with `/health` + `/v1/models` requests. The temporary 404-logging diagnostic middleware was removed again; port `8080` is outside OpenCode's local-discovery defaults.

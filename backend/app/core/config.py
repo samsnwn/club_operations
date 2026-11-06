@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     # SQLite for now; a relative path resolves against the working directory.
     database_url: str = "sqlite:///./blue_velvet.db"
     api_v1_prefix: str = "/api/v1"
+    invoice_service_url: str = "http://localhost:8081"
+    invoice_service_token: str = "development-invoice-service-token"
 
 
 @lru_cache

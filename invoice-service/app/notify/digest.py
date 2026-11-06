@@ -76,7 +76,7 @@ def send_digest(db: Session) -> bool:
                 smtp.starttls()
                 smtp.login(settings.smtp_user, settings.smtp_password)
             smtp.send_message(message)
-    except Exception:  # noqa: BLE001 — mail outages must not break the pipeline
+    except Exception:
         log.exception("Digest send failed")
         return False
     return True
