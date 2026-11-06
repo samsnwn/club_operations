@@ -1,301 +1,202 @@
 import { useCallback, useEffect, useState } from 'react';
+
 import './App.css';
+import { ApiError } from './api';
+import { logout, me, type CurrentUser } from './auth';
+import { ChangePassword } from './ChangePassword';
+import { InvoiceWorkspace } from './InvoiceWorkspace';
+import { Login } from './Login';
+import { StaffPanel } from './StaffPanel';
 
-type Invoice = {
-  id: number;
-  source: string;
-  status: string;
-  confidence: number;
-  created_at: string;
-  suggestions: Record<string, string | number>;
-  supplier_guess: string | null;
-};
-
-type QueueResponse = { count: number; items: Invoice[] };
-type InvoiceDetail = Invoice & { extracted_text: string | null };
-type ReviewValues = Record<string, string>;
-
-const reviewFields = [
-  ['supplier', 'Supplier'],
-  ['invoice_number', 'Invoice number'],
-  ['invoice_date', 'Invoice date'],
-  ['due_date', 'Due date'],
-  ['net', 'Net'],
-  ['vat', 'VAT'],
-  ['gross', 'Gross'],
-  ['category', 'Category'],
-  ['payment_method', 'Payment method'],
-  ['description', 'Description'],
-] as const;
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-  return response.json() as Promise<T>;
-}
+type View = 'invoices' | 'staff' | 'password';
+type EffectiveView = View | 'home';
 
 function App() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [selected, setSelected] = useState<InvoiceDetail | null>(null);
-  const [values, setValues] = useState<ReviewValues>({});
-  const [message, setMessage] = useState('Loading review queue…');
-  const [busy, setBusy] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [view, setView] = useState<View>('invoices');
+  const [notice, setNotice] = useState('');
 
-  const loadQueue = useCallback(async () => {
+  useEffect(() => {
+    let active = true;
+    me()
+      .then((current) => {
+        if (active) setUser(current);
+      })
+      .catch((caught: unknown) => {
+        if (active && !(caught instanceof ApiError && caught.status === 401)) {
+          setNotice('Unable to check the session. Please reload the page.');
+        }
+      })
+      .finally(() => {
+        if (active) setChecking(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const refreshSession = useCallback(async () => {
     try {
-      const queue = await request<QueueResponse>('/invoices/queue');
-      setInvoices(queue.items);
-      setMessage(
-        `${queue.count} invoice${queue.count === 1 ? '' : 's'} awaiting review`,
-      );
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'Unable to load invoices',
-      );
+      setUser(await me());
+    } catch {
+      setUser(null);
     }
   }, []);
 
-  useEffect(() => {
-    // Same refresh as every later one, deferred a tick so the mount fetch is
-    // an async continuation rather than a synchronous effect body call.
-    void Promise.resolve().then(loadQueue);
-  }, [loadQueue]);
+  const handleAuthProblem = useCallback(() => {
+    void refreshSession();
+  }, [refreshSession]);
 
-  const selectInvoice = async (id: number) => {
-    setBusy(true);
+  const signOut = async () => {
     try {
-      const detail = await request<InvoiceDetail>(`/invoices/${id}`);
-      const nextValues: ReviewValues = {};
-      for (const [field] of reviewFields) {
-        const value = detail.suggestions[field];
-        nextValues[field] = value === undefined ? '' : String(value);
-      }
-      setSelected(detail);
-      setValues(nextValues);
-      setMessage(`Reviewing invoice #${id}`);
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'Unable to load invoice',
-      );
-    } finally {
-      setBusy(false);
+      await logout();
+    } catch {
+      // Clearing local state is enough; the session will expire on its own.
     }
+    setUser(null);
+    setView('invoices');
+    setNotice('');
   };
 
-  const updateValue = (field: string, value: string) => {
-    setValues((current) => ({ ...current, [field]: value }));
-  };
+  if (checking) {
+    return (
+      <main className="invoice-app">
+        <p className="status">Checking session…</p>
+      </main>
+    );
+  }
 
-  const reviewInvoice = async (action: 'confirm' | 'reject') => {
-    if (!selected) return;
-    setBusy(true);
-    try {
-      if (action === 'confirm') {
-        const payload: Record<string, string | number> = {};
-        for (const [field] of reviewFields) {
-          const value = values[field]?.trim();
-          if (!value) continue;
-          if (['net', 'vat', 'gross'].includes(field)) {
-            const parsed = Number(value);
-            if (!Number.isFinite(parsed)) {
-              setMessage(`Invalid number for ${field}`);
-              return;
-            }
-            payload[field] = parsed;
-          } else {
-            payload[field] = value;
-          }
+  if (!user) {
+    return (
+      <main className="invoice-app">
+        <Login onLogin={setUser} />
+        {notice && (
+          <p className="form-error" role="alert">
+            {notice}
+          </p>
+        )}
+      </main>
+    );
+  }
+
+  if (user.must_change_password) {
+    return (
+      <main className="invoice-app">
+        <ChangePassword
+          user={user}
+          forced
+          onChanged={setUser}
+          onSignOut={() => void signOut()}
+        />
+      </main>
+    );
+  }
+
+  const canReviewInvoices = user.role === 'owner' || user.role === 'admin';
+  const canManageStaff = user.role === 'owner' || user.role === 'admin';
+
+  // Staff accounts can sign in and change their own password, but must never
+  // see the invoice workspace or the staff panel.
+  const effectiveView: EffectiveView =
+    (view === 'invoices' && !canReviewInvoices) ||
+    (view === 'staff' && !canManageStaff)
+      ? 'home'
+      : view;
+
+  const heading =
+    effectiveView === 'staff'
+      ? {
+          title: 'Internal accounts',
+          description: 'Create staff accounts and manage access.',
         }
-        await request(`/invoices/${selected.id}/confirm`, {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await request(`/invoices/${selected.id}/reject`, { method: 'POST' });
-      }
-      setSelected(null);
-      await loadQueue();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'Unable to save review',
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const importInvoices = async () => {
-    setBusy(true);
-    setImporting(true);
-    try {
-      const result = await request<{ new_invoices: number }>(
-        '/invoices/import',
-        {
-          method: 'POST',
-        },
-      );
-      setMessage(
-        `${result.new_invoices} new invoice${result.new_invoices === 1 ? '' : 's'} imported`,
-      );
-      await loadQueue();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Import failed');
-    } finally {
-      setImporting(false);
-      setBusy(false);
-    }
-  };
-
-  const rejectInvoice = async (id: number) => {
-    setBusy(true);
-    try {
-      await request(`/invoices/${id}/reject`, { method: 'POST' });
-      await loadQueue();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'Unable to reject invoice',
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
+      : effectiveView === 'password'
+        ? {
+            title: 'Change password',
+            description: 'Update the password for your own account.',
+          }
+        : effectiveView === 'invoices'
+          ? {
+              title: 'Invoice review',
+              description:
+                'Import captured invoices, check the suggestions, and confirm what is ready for export.',
+            }
+          : {
+              title: 'Your account',
+              description:
+                'Your account is active. Invoice review is limited to owners and administrators; you can change your password or sign out.',
+            };
 
   return (
     <main className="invoice-app">
       <header className="app-header">
         <div>
           <p className="eyebrow">Blue Velvet · Phase 0.5</p>
-          <h1>Invoice review</h1>
-          <p>
-            Import captured invoices, check the suggestions, and confirm what is
-            ready for export.
-          </p>
+          <h1>{heading.title}</h1>
+          <p>{heading.description}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void importInvoices()}
-          disabled={busy}
-        >
-          {importing ? 'Importing…' : 'Import invoices'}
-        </button>
-      </header>
-      <p className="status" role="status">
-        {message}
-      </p>
-      {selected ? (
-        <section className="review-panel" aria-label="Review invoice">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">
-                Invoice #{selected.id} · {selected.source}
-              </p>
-              <h2>Check and confirm the extracted values</h2>
-            </div>
+        <div className="header-actions">
+          <span className="account">
+            {user.username} · {user.role}
+          </span>
+          {canReviewInvoices && (
             <button
               type="button"
               className="secondary"
-              onClick={() => setSelected(null)}
+              aria-pressed={effectiveView === 'invoices'}
+              onClick={() => setView('invoices')}
             >
-              Back to queue
+              Invoices
             </button>
-          </div>
-          <div className="review-grid">
-            {reviewFields.map(([field, label]) => (
-              <label
-                className={field === 'description' ? 'wide-field' : ''}
-                key={field}
-              >
-                {label}
-                {field === 'description' ? (
-                  <textarea
-                    value={values[field] ?? ''}
-                    onChange={(event) => updateValue(field, event.target.value)}
-                  />
-                ) : (
-                  <input
-                    value={values[field] ?? ''}
-                    onChange={(event) => updateValue(field, event.target.value)}
-                  />
-                )}
-              </label>
-            ))}
-          </div>
-          <details className="source-text">
-            <summary>Show extracted source text</summary>
-            <pre>{selected.extracted_text || 'No text was extracted.'}</pre>
-          </details>
-          <div className="original-preview">
-            <h3>Original invoice</h3>
-            <iframe
-              title={`Original invoice ${selected.id}`}
-              src={`/api/v1/invoices/${selected.id}/original`}
-            />
-          </div>
-          <div className="review-actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={() => void reviewInvoice('reject')}
-            >
-              Reject
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void reviewInvoice('confirm')}
-            >
-              {busy ? 'Saving…' : 'Confirm invoice'}
-            </button>
-          </div>
-        </section>
-      ) : (
-        <section className="invoice-list" aria-label="Invoices awaiting review">
-          {invoices.length === 0 ? (
-            <div className="empty-state">
-              No invoices are waiting for review.
-            </div>
-          ) : (
-            invoices.map((invoice) => (
-              <article className="invoice-card" key={invoice.id}>
-                <button
-                  type="button"
-                  className="invoice-select"
-                  onClick={() => void selectInvoice(invoice.id)}
-                >
-                  <span>
-                    <span className="eyebrow">
-                      Invoice #{invoice.id} · {invoice.source}
-                    </span>
-                    <strong>
-                      {invoice.supplier_guess ?? 'Supplier not recognised'}
-                    </strong>
-                    <span>
-                      {Math.round(invoice.confidence * 100)}% extraction
-                      confidence
-                    </span>
-                  </span>
-                  <span className={`status-badge ${invoice.status}`}>
-                    {invoice.status.replace('_', ' ')}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void rejectInvoice(invoice.id)}
-                >
-                  Reject
-                </button>
-              </article>
-            ))
           )}
+          {canManageStaff && (
+            <button
+              type="button"
+              className="secondary"
+              aria-pressed={effectiveView === 'staff'}
+              onClick={() => setView('staff')}
+            >
+              Staff
+            </button>
+          )}
+          <button
+            type="button"
+            className="secondary"
+            aria-pressed={effectiveView === 'password'}
+            onClick={() => setView('password')}
+          >
+            Change password
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void signOut()}
+          >
+            Sign out
+          </button>
+        </div>
+      </header>
+
+      {effectiveView === 'staff' ? (
+        <StaffPanel currentUser={user} onAuthProblem={handleAuthProblem} />
+      ) : effectiveView === 'password' ? (
+        <ChangePassword
+          user={user}
+          onChanged={(next) => {
+            setUser(next);
+            setView('invoices');
+          }}
+          onSignOut={() => void signOut()}
+        />
+      ) : effectiveView === 'invoices' ? (
+        <InvoiceWorkspace onAuthProblem={handleAuthProblem} />
+      ) : (
+        <section className="empty-state" aria-label="Your account">
+          <h2>No sections are assigned to your account yet.</h2>
+          <p>
+            Invoice review is limited to owners and administrators. You can
+            change your password or sign out above.
+          </p>
         </section>
       )}
     </main>
