@@ -7,7 +7,6 @@ and the Drive folder are the buffers — the service never needs to be online
 when an invoice arrives.
 """
 
-from pathlib import Path
 from typing import Protocol
 
 

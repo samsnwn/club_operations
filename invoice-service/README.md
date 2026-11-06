@@ -41,6 +41,11 @@ Until real Gmail/Drive credentials exist, the ingestion command-line/test path
 uses the fixture source (`tests/fixtures/`, deliberately fake club data); the
 Gmail/Drive adapters log a clear "not configured" and skip cleanly.
 
+For a real-invoice demonstration, copy PDFs or images into
+`data/inbox/` and click **Import invoices** in the frontend. The folder is
+gitignored and bind-mounted into Docker. Imported originals remain in the
+service's data volume and can be previewed from the review screen.
+
 ## Tests
 
 ```bash

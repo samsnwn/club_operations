@@ -1,7 +1,6 @@
 # Invoice service — API + pipeline tests against a temporary SQLite store.
 
 import os
-import shutil
 from pathlib import Path
 from tempfile import mkdtemp
 
@@ -10,14 +9,14 @@ from fastapi.testclient import TestClient
 
 os.environ.setdefault("INVOICE_DATABASE_URL", "sqlite:///:memory:")  # pragma: env-safe
 
-from app.core.config import get_settings  # noqa: E402
-from app.db.base import Base, SessionLocal, engine  # noqa: E402
-from app.ingestion.fixtures import FixtureSource  # noqa: E402
-from app.ingestion.pipeline import ingest_file, poll_sources  # noqa: E402
-from app.main import create_app  # noqa: E402
-from app.models.invoice import Invoice, SyncWatermark  # noqa: E402
-from app.notify.digest import build_digest  # noqa: E402
-from sqlalchemy.orm import Session  # noqa: E402
+from sqlalchemy.orm import Session
+
+from app.core.config import get_settings
+from app.db.base import Base, SessionLocal, engine
+from app.ingestion.fixtures import FixtureSource
+from app.ingestion.pipeline import ingest_file, poll_sources
+from app.models.invoice import Invoice
+from app.notify.digest import build_digest
 
 OWNER_TOKEN = "owner-test-token"
 ADMIN_TOKEN = "admin-test-token"

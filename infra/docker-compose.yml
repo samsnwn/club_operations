@@ -17,6 +17,8 @@ services:
     environment:
       # Keep SQLite inside the container's named volume, not a bind mount.
       DATABASE_URL: "sqlite:////data/blue_velvet.db"
+      INVOICE_SERVICE_URL: "http://invoice-service:8081"
+      INVOICE_SERVICE_TOKEN: "development-invoice-service-token"
     volumes:
       - backend-db-data:/data
       # Source binds for StatReload hot reload (application code, tests, and
@@ -60,8 +62,11 @@ services:
     init: true
     ports:
       - "8081:8081"
+    environment:
+      INVOICE_INTERNAL_TOKEN: "development-invoice-service-token"
     volumes:
       - invoice-data:/app/data
+      - ../invoice-service/data/inbox:/app/data/inbox
       - ../invoice-service/app:/app/app
       - ../invoice-service/tests:/app/tests
       - ../invoice-service/alembic:/app/alembic

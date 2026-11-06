@@ -9,10 +9,8 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import (
-    Boolean,
     DateTime,
     Float,
-    ForeignKey,
     String,
     Text,
     UniqueConstraint,
