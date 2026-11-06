@@ -2,8 +2,17 @@
   "name": "blue-velvet",
   "private": true,
   "scripts": {
+    "dev": "docker compose -f infra/docker-compose.yml up --build",
+    "dev:up": "docker compose -f infra/docker-compose.yml up -d --build",
+    "dev:down": "docker compose -f infra/docker-compose.yml down",
+    "dev:logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "dev:config": "docker compose -f infra/docker-compose.yml config --quiet",
+    "migrate": "docker compose -f infra/docker-compose.yml exec backend uv run alembic upgrade head && docker compose -f infra/docker-compose.yml exec invoice-service uv run alembic upgrade head",
+    "lint": "pnpm --dir frontend run lint && uv run --directory backend ruff check . && uv run --directory invoice-service ruff check .",
+    "test": "uv run --directory backend pytest && uv run --directory invoice-service pytest",
     "format": "prettier --write \"**/*.{ts,tsx,mts,mjs,js,cjs,cts}\" && uv run --directory backend ruff format . && uv run --directory invoice-service ruff format .",
-    "format:check": "prettier --check \"**/*.{ts,tsx,mts,mjs,js,cjs,cts}\" && uv run --directory backend ruff format --check . && uv run --directory invoice-service ruff format --check ."
+    "format:check": "prettier --check \"**/*.{ts,tsx,mts,mjs,js,cjs,cts}\" && uv run --directory backend ruff format --check . && uv run --directory invoice-service ruff format --check .",
+    "build": "pnpm --dir frontend run build && uv build backend && uv build invoice-service"
   },
   "devDependencies": {
     "prettier": "^3.9.4"

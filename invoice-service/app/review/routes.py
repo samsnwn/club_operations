@@ -12,11 +12,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.base import get_db
 from app.models.invoice import Invoice
-from sqlalchemy.orm import Session
 
 router = APIRouter(tags=["review"])
 log = logging.getLogger(__name__)
@@ -35,9 +35,18 @@ FINAL_FIELDS = (
 )
 
 
+def internal_token(authorization: Annotated[str | None, Header()] = None) -> None:
+    expected = get_settings().internal_token
+    token = authorization.removeprefix("Bearer ").strip() if authorization else ""
+    if not expected or token != expected:
+        raise HTTPException(status_code=401, detail="Invalid internal service token")
+
+
 def current_reviewer(authorization: Annotated[str | None, Header()] = None) -> str:
     expected = get_settings().review_tokens
     token = authorization.removeprefix("Bearer ").strip() if authorization else ""
+    if token and token == get_settings().internal_token:
+        return "backend"
     for username, expected_token in expected.items():
         if token and token == expected_token:
             return username
@@ -63,9 +72,9 @@ def _serialise(invoice: Invoice) -> dict:
 
 @router.get("/queue")
 def list_queue(
+    db: Annotated[Session, Depends(get_db)],
+    reviewer: Annotated[str, Depends(current_reviewer)],
     status: str = "pending_review",
-    db: Session = Depends(get_db),
-    reviewer: str = Depends(current_reviewer),
 ) -> dict:
     """Pending items, confident captures first (stage 1: all need closing)."""
     rows = (
@@ -81,8 +90,8 @@ def list_queue(
 @router.get("/queue/{invoice_id}")
 def get_item(
     invoice_id: int,
-    db: Session = Depends(get_db),
-    reviewer: str = Depends(current_reviewer),
+    db: Annotated[Session, Depends(get_db)],
+    reviewer: Annotated[str, Depends(current_reviewer)],
 ) -> dict:
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:
@@ -112,8 +121,8 @@ class ReviewPayload(BaseModel):
 def confirm(
     invoice_id: int,
     payload: ReviewPayload,
-    db: Session = Depends(get_db),
-    reviewer: str = Depends(current_reviewer),
+    db: Annotated[Session, Depends(get_db)],
+    reviewer: Annotated[str, Depends(current_reviewer)],
 ) -> dict:
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:
@@ -136,8 +145,8 @@ def confirm(
 @router.post("/queue/{invoice_id}/reject")
 def reject(
     invoice_id: int,
-    db: Session = Depends(get_db),
-    reviewer: str = Depends(current_reviewer),
+    db: Annotated[Session, Depends(get_db)],
+    reviewer: Annotated[str, Depends(current_reviewer)],
 ) -> dict:
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:

@@ -3,7 +3,7 @@
 Same SQLAlchemy 2.0 pattern as the main `backend/` service, isolated store.
 """
 
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker

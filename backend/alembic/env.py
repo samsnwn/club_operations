@@ -3,7 +3,6 @@
 from logging.config import fileConfig
 
 from alembic import context
-
 from app.core.config import get_settings
 from app.db.base import Base
 
@@ -18,7 +17,7 @@ config.set_main_option("sqlalchemy.url", get_settings().database_url)
 target_metadata = Base.metadata
 
 # Import ORM model modules here so autogenerate can detect them, once models exist:
-# from app import models  # noqa: F401
+# from app import models
 
 
 def run_migrations_offline() -> None:

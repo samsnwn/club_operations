@@ -5,7 +5,7 @@ rows — never exports, never sheet writes (hard rules 1 and 2).
 
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -58,7 +58,7 @@ def poll_sources(db: Session, sources: list) -> int:
         cursor = cursor_row.cursor if cursor_row else None
         try:
             captured, next_cursor = source.poll(cursor)
-        except Exception:  # noqa: BLE001 — per-source isolation
+        except Exception:
             log.exception("Source %s poll failed", source.name)
             continue
         for captured_file in captured:
@@ -66,10 +66,25 @@ def poll_sources(db: Session, sources: list) -> int:
                 new_count += 1
         watermark = cursor_row or SyncWatermark(source=source.name)
         watermark.cursor = next_cursor
-        watermark.last_success_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        watermark.last_success_at = datetime.now(UTC).replace(tzinfo=None)
         db.add(watermark)
     db.commit()
     return new_count
+
+
+def poll_fixture_source(db: Session) -> int:
+    """Run the deterministic fixture source for the development workflow."""
+    from app.ingestion.fixtures import FixtureSource
+
+    return poll_sources(db, [FixtureSource()])
+
+
+def poll_drop_folder(db: Session) -> int:
+    """Import new files from the configured local demonstration inbox."""
+    from app.ingestion.drop_folder import DropFolderSource
+
+    settings = get_settings()
+    return poll_sources(db, [DropFolderSource(settings.inbox_dir)])
 
 
 def ingest_file(db: Session, captured: CapturedFile) -> bool:

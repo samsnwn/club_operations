@@ -22,9 +22,11 @@ class Settings(BaseSettings):
 
     app_name: str = "Blue Velvet Invoice Service"
     api_v1_prefix: str = "/api/v1"
+    internal_token: str = "development-invoice-service-token"
     database_url: str = "sqlite:///./data/invoices.db"
     # Where captured originals are stored (gitignored).
     attachments_dir: str = "./data/attachments"
+    inbox_dir: str = "./data/inbox"
     # Resource limits for untrusted captures and document extraction.
     max_attachment_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
     max_pdf_pages: int = Field(default=100, gt=0)
