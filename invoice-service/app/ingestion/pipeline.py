@@ -6,6 +6,7 @@ rows — never exports, never sheet writes (hard rules 1 and 2).
 import hashlib
 import logging
 from datetime import UTC, datetime
+from functools import lru_cache
 
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,7 @@ from app.core.config import get_settings
 from app.extraction import fields as field_parser
 from app.extraction import text as text_extractor
 from app.ingestion.base import CapturedFile
+from app.ingestion.drop_folder import DropFolderSource
 from app.models.invoice import Invoice, SyncWatermark, attachment_path
 
 log = logging.getLogger(__name__)
@@ -72,19 +74,21 @@ def poll_sources(db: Session, sources: list) -> int:
     return new_count
 
 
-def poll_fixture_source(db: Session) -> int:
-    """Run the deterministic fixture source for the development workflow."""
-    from app.ingestion.fixtures import FixtureSource
-
-    return poll_sources(db, [FixtureSource()])
+@lru_cache
+def drop_folder_source(directory: str, max_attachment_bytes: int) -> DropFolderSource:
+    """One source instance per inbox directory and size limit, so settle-state
+    observations survive between import calls. The limit is part of the cache
+    key: a settings reload must never reuse a source built with a stale limit
+    (clearing the settings cache does not clear this one)."""
+    return DropFolderSource(directory, max_attachment_bytes=max_attachment_bytes)
 
 
 def poll_drop_folder(db: Session) -> int:
     """Import new files from the configured local demonstration inbox."""
-    from app.ingestion.drop_folder import DropFolderSource
-
     settings = get_settings()
-    return poll_sources(db, [DropFolderSource(settings.inbox_dir)])
+    return poll_sources(
+        db, [drop_folder_source(settings.inbox_dir, settings.max_attachment_bytes)]
+    )
 
 
 def ingest_file(db: Session, captured: CapturedFile) -> bool:
