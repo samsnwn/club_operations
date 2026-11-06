@@ -47,6 +47,13 @@ docker compose -f infra/docker-compose.yml exec backend uv run alembic revision 
 docker compose -f infra/docker-compose.yml down            # stop and remove containers (keep the database volume; add -v to wipe it)
 ```
 
+Optional per-service overrides (gitignored; Compose injects them via `env_file`):
+
+```bash
+cp backend/.env.example backend/.env
+cp invoice-service/.env.example invoice-service/.env
+```
+
 Backend (host, without Docker — same check with CI parity; run from `backend/`):
 
 ```bash
