@@ -7,6 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 ## [2026-11-09]
 
 ### Added
+- Invoice-service startup security guard: the service now refuses to start
+  with an empty internal token, or with the known development token outside
+  `INVOICE_ENVIRONMENT=development`. The environment defaults to `production`,
+  so an unconfigured deployment fails closed instead of inheriting the public
+  default. Token checks use `secrets.compare_digest`.
+- Five invoice-service tests cover the startup guards, the removed legacy
+  token path and unknown bearer tokens.
+
+### Changed
+- Development compose binds the invoice service to `127.0.0.1:8081` instead of
+  all host interfaces, and explicitly sets `INVOICE_ENVIRONMENT=development`.
+  The service README, infra README, backend README, architecture doc and
+  `.env.example` files document the production token/environment requirements.
 - CI now lints both Python services with `ruff check`, validates the compose
   file with `docker compose config --quiet`, and applies the invoice-service
   Alembic chain (`alembic upgrade head` against an in-memory SQLite URL) before
@@ -16,8 +29,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 - `frontend/README.md` replaced the Vite template boilerplate with
   project-specific instructions (dev servers, API proxy, auth and invoice
   review flows, build/lint commands).
-
-### Changed
 - Documentation refresh to separate delivered functionality from stubs:
   `AGENTS.md` current stage, `STATUS.md`, `docs/next-steps.md` and the invoice
   service README now state explicitly that Drive/Gmail ingestion, the scheduled
@@ -27,10 +38,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 - `backend/README.md` documents the auth/user routes, roles, CLI bootstrap and
   invoice facade, which were missing.
 
+### Removed
+- The legacy per-user `INVOICE_REVIEW_TOKENS` bearer-token fallback in the
+  invoice service. The internal service token plus `X-Reviewer` is now the only
+  credential path; the old environment variable is ignored.
+
 ### Fixed
 - `STATUS.md` no longer claims the internal-authentication work is uncommitted
   (it was committed on 2026-11-06), and its test counts now match the suites
-  (46 backend, 21 invoice service).
+  (46 backend, 26 invoice service).
 - `docs/next-steps.md` no longer implies the invoice service has automatic
   ingestion; the remaining Phase 0.5 work is listed explicitly.
 - `infra/README.md` now describes all three dev services (including the invoice
@@ -50,9 +66,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   `403`, and logout session invalidation. A browser-level pass on the Docker
   stack remains pending.
 
-No application runtime code, schema or deployment behaviour changed in this
-entry; the changes are documentation and CI, plus comment-only reference
-corrections.
+Application runtime behaviour changed only for invoice-service authentication
+hardening (startup guard, loopback-only dev binding, legacy token removal);
+there are no schema or database migration changes in this entry.
 
 ## [2026-11-06]
 

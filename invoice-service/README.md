@@ -52,10 +52,14 @@ yet exported anywhere.
 
 ```bash
 uv sync
-uv run uvicorn app.main:app --reload --port 8081
+INVOICE_ENVIRONMENT=development uv run uvicorn app.main:app --reload --port 8081
 ```
 
 API docs: `http://localhost:8081/docs` — health under `/api/v1/health`.
+
+The service fails closed: `INVOICE_ENVIRONMENT` defaults to `production`, and
+startup refuses the known development token in that mode. Local runs must opt
+into development explicitly (as above or via `.env`).
 
 Until real Gmail/Drive credentials exist, the ingestion command-line/test path
 uses the fixture source (`tests/fixtures/`, deliberately fake club data); the
@@ -76,6 +80,20 @@ prefix automatically. `INVOICE_INTERNAL_TOKEN` must match the backend's
 `INVOICE_SERVICE_TOKEN`. Keep `INVOICE_EXPORT_ENABLED=false` until the sheet
 mapping is confirmed. Never commit `.env`.
 
+`INVOICE_ENVIRONMENT` defaults to `production`. In production, startup refuses
+the known development token and requires a unique `INVOICE_INTERNAL_TOKEN`; the
+development compose file sets `INVOICE_ENVIRONMENT=development` explicitly.
+There is no per-user review-token fallback: the internal token plus the
+`X-Reviewer` header is the only service credential path.
+
+## Security boundary
+
+The internal token grants full access to invoice data (queue, originals,
+confirm/reject) and bypasses the platform facade, so it must be a unique secret
+outside development. The dev compose publishes the service on
+`127.0.0.1:8081` only; production must keep `:8081` internal to the compose
+network and never expose it to the LAN or internet.
+
 ## Reviewer attribution
 
 `POST /api/v1/queue/{id}/confirm` and `/reject` record a `reviewed_by` value.
@@ -84,7 +102,8 @@ backend facade also sends an `X-Reviewer` header, that username is used
 instead. The header is trusted **only** alongside a valid internal token —
 never for unauthenticated or browser-direct calls. Through the main platform,
 the facade derives `X-Reviewer` from the signed-in session, so reviewers are
-attributed to their own accounts.
+attributed to their own accounts. Per-user bearer tokens are no longer
+supported; direct API use requires the internal token.
 
 ## Tests
 

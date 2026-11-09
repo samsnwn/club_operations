@@ -29,11 +29,17 @@ service token, SMTP credentials and cookie/origin settings.
 compose file. The `.env` files are read on the host and injected into the
 containers — they are never bind-mounted or committed.
 
+The dev compose explicitly sets `INVOICE_ENVIRONMENT=development` for the
+invoice service and publishes it on `127.0.0.1:8081` only. Production must set
+`INVOICE_ENVIRONMENT=production` with a unique `INVOICE_INTERNAL_TOKEN` (the
+service refuses to start with the known development default) and must not
+publish `:8081` at all.
+
 | Service | Build context | Port | Binds (hot reload) | Volumes |
 | --- | --- | --- | --- | --- |
 | `backend` | `backend/Dockerfile` — uv-based, `alembic upgrade head` runs at start | `:8080` | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `db-data:/data` (SQLite) |
 | `frontend` | `frontend/Dockerfile` — node:22 + pinned `pnpm@9.12.0` (corepack activate) | `:5173` | `src/`, `public/`, `index.html`, configs | `frontend-vite-cache` (Vite pre-bundle cache) |
-| `invoice-service` | `invoice-service/Dockerfile` — uv-based + Tesseract, `alembic upgrade head` runs at start | `:8081` (development only) | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `invoice-data:/app/data` (SQLite + originals); `data/inbox` bind for the demo |
+| `invoice-service` | `invoice-service/Dockerfile` — uv-based + Tesseract, `alembic upgrade head` runs at start | `127.0.0.1:8081` (development only) | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `invoice-data:/app/data` (SQLite + originals); `data/inbox` bind for the demo |
 
 Wiring: the browser talks only to `:5173` for the PWA and to `:8080` for the
 API (the Vite dev-server proxy, configured via `BACKEND_URL`, default

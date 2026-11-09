@@ -1,8 +1,9 @@
 """Review queue API (README §Phase 0.5): list pending items, inspect one with
 the extracted suggestions, confirm/correct/reject. Auth: the backend facade
 authenticates the user and forwards the username in `X-Reviewer`; that header
-is only trusted together with the internal service token. Per-user bearer
-tokens (owner + one admin — owner answer #5) remain as a direct-use fallback.
+is only trusted together with the internal service token. There is no second
+credential path — direct use requires the internal token, and reviewer identity
+is whatever the trusted caller forwards.
 
 Only CONFIRMED invoices are eligible for export — the human review point is
 the gate between extraction and the accounting sheet (hard rules 1 and 3).
@@ -10,6 +11,7 @@ the gate between extraction and the accounting sheet (hard rules 1 and 3).
 
 import datetime as dt
 import logging
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -40,10 +42,17 @@ FINAL_FIELDS = (
 MAX_REVIEWER_LENGTH = 64
 
 
+def _token_matches(provided: str, expected: str) -> bool:
+    """Constant-time comparison that also tolerates non-ASCII header input."""
+    if not provided or not expected:
+        return False
+    return secrets.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
+
+
 def internal_token(authorization: Annotated[str | None, Header()] = None) -> None:
     expected = get_settings().internal_token
     token = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if not expected or token != expected:
+    if not _token_matches(token, expected):
         raise HTTPException(status_code=401, detail="Invalid internal service token")
 
 
@@ -58,13 +67,10 @@ def current_reviewer(
     without the header (scheduled/system work) are attributed to "backend".
     """
     token = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if token and token == get_settings().internal_token:
-        reviewer = (x_reviewer or "").strip()
-        return reviewer[:MAX_REVIEWER_LENGTH] if reviewer else "backend"
-    for username, expected_token in get_settings().review_tokens.items():
-        if token and token == expected_token:
-            return username
-    raise HTTPException(status_code=401, detail="Unrecognised reviewer token")
+    if not _token_matches(token, get_settings().internal_token):
+        raise HTTPException(status_code=401, detail="Unrecognised reviewer token")
+    reviewer = (x_reviewer or "").strip()
+    return reviewer[:MAX_REVIEWER_LENGTH] if reviewer else "backend"
 
 
 def _serialise(invoice: Invoice) -> dict:
