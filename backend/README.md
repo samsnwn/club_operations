@@ -58,7 +58,9 @@ club data lives only outside the repo.
 Every setting has a development-safe default, so a `.env` is optional locally.
 To override anything, copy `.env.example` to `.env` in this directory (the
 service loads `.env` from its working directory) and edit it. `INVOICE_SERVICE_TOKEN`
-must match the invoice service's `INVOICE_INTERNAL_TOKEN`. Never commit `.env`.
+must match the invoice service's `INVOICE_INTERNAL_TOKEN`, and must be a unique
+secret outside development — the invoice service refuses to start with the
+known development default in production. Never commit `.env`.
 
 ## Tests
 

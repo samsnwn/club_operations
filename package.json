@@ -2,9 +2,9 @@
   "name": "blue-velvet",
   "private": true,
   "scripts": {
-    "dev": "docker compose -f infra/docker-compose.yml up --build",
     "dev:up": "docker compose -f infra/docker-compose.yml up -d --build",
     "dev:down": "docker compose -f infra/docker-compose.yml down",
+    "dev:clean": "docker compose -f infra/docker-compose.yml down -v",
     "dev:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "dev:config": "docker compose -f infra/docker-compose.yml config --quiet",
     "migrate": "docker compose -f infra/docker-compose.yml exec backend uv run alembic upgrade head && docker compose -f infra/docker-compose.yml exec invoice-service uv run alembic upgrade head",

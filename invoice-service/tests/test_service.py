@@ -7,21 +7,16 @@ from tempfile import mkdtemp
 
 import pytest
 from fastapi.testclient import TestClient
-
-os.environ.setdefault("INVOICE_DATABASE_URL", "sqlite:///:memory:")  # pragma: env-safe
-
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import DEFAULT_INTERNAL_TOKEN, get_settings
 from app.db.base import Base, SessionLocal, engine
 from app.ingestion.fixtures import FixtureSource
 from app.ingestion.pipeline import ingest_file, poll_sources
+from app.main import create_app
 from app.models.invoice import Invoice
 from app.notify.digest import build_digest
 from app.review.routes import MAX_REVIEWER_LENGTH
-
-OWNER_TOKEN = "owner-test-token"
-ADMIN_TOKEN = "admin-test-token"
 
 
 class CapturedTestFile:
@@ -46,16 +41,11 @@ def db_fixture() -> Session:
 
 @pytest.fixture(name="client")
 def client_fixture(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClient:
-    monkeypatch.setenv(
-        "INVOICE_REVIEW_TOKENS",
-        f'{{"owner": "{OWNER_TOKEN}", "admin": "{ADMIN_TOKEN}"}}',
-    )
-    monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(mkdtemp()))
+    monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(tmp_path / "attachments"))
     get_settings.cache_clear()
     Base.metadata.create_all(engine)
-    from app.main import create_app as make
 
-    return TestClient(make())
+    return TestClient(create_app())
 
 
 def run_fixture_ingest(db: Session) -> int:
@@ -96,9 +86,69 @@ def test_queue_requires_token(client: TestClient) -> None:
     assert client.get("/api/v1/queue").status_code == 401
 
 
+def test_queue_rejects_unknown_bearer_token(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/queue", headers={"Authorization": "Bearer not-the-token"}
+    )
+    assert response.status_code == 401
+
+
+def test_legacy_review_tokens_are_ignored(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The per-user token path was removed; the old env var has no effect."""
+    monkeypatch.setenv("INVOICE_REVIEW_TOKENS", '{"owner": "legacy-owner-token"}')
+    get_settings.cache_clear()
+    try:
+        response = client.get(
+            "/api/v1/queue",
+            headers={"Authorization": "Bearer legacy-owner-token"},
+        )
+        assert response.status_code == 401
+    finally:
+        get_settings.cache_clear()
+
+
+def test_production_refuses_development_internal_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("INVOICE_ENVIRONMENT", "production")
+    monkeypatch.setenv("INVOICE_INTERNAL_TOKEN", DEFAULT_INTERNAL_TOKEN)
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(RuntimeError, match="development internal token"):
+            create_app()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_production_accepts_unique_internal_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("INVOICE_ENVIRONMENT", "production")
+    monkeypatch.setenv("INVOICE_INTERNAL_TOKEN", "unique-production-token")
+    get_settings.cache_clear()
+    try:
+        assert create_app().title == "Blue Velvet Invoice Service"
+    finally:
+        get_settings.cache_clear()
+
+
+def test_empty_internal_token_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("INVOICE_ENVIRONMENT", "production")
+    monkeypatch.setenv("INVOICE_INTERNAL_TOKEN", "")
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(RuntimeError, match="must not be empty"):
+            create_app()
+    finally:
+        get_settings.cache_clear()
+
+
 def _first_queue_item(client: TestClient) -> dict:
     return client.get(
-        "/api/v1/queue", headers={"Authorization": f"Bearer {OWNER_TOKEN}"}
+        "/api/v1/queue",
+        headers={"Authorization": f"Bearer {get_settings().internal_token}"},
     ).json()["items"][0]
 
 
@@ -159,13 +209,12 @@ def test_reviewer_header_is_trimmed_and_capped(client: TestClient, db: Session) 
 
 def test_review_flow_confirm_with_corrections(client: TestClient, db: Session) -> None:
     run_fixture_ingest(db)
-    items = client.get(
-        "/api/v1/queue", headers={"Authorization": f"Bearer {OWNER_TOKEN}"}
-    ).json()["items"]
+    auth = {"Authorization": f"Bearer {get_settings().internal_token}"}
+    items = client.get("/api/v1/queue", headers=auth).json()["items"]
     target = items[0]
     response = client.post(
         f"/api/v1/queue/{target['id']}/confirm",
-        headers={"Authorization": f"Bearer {ADMIN_TOKEN}"},
+        headers={**auth, "X-Reviewer": "admin"},
         json={"gross": 1190.00, "supplier": "Musterveru GmbH"},
     )
     assert response.json() == {
@@ -173,12 +222,7 @@ def test_review_flow_confirm_with_corrections(client: TestClient, db: Session) -
         "status": "confirmed",
         "reviewed_by": "admin",
     }
-    assert (
-        client.get(
-            "/api/v1/queue", headers={"Authorization": f"Bearer {OWNER_TOKEN}"}
-        ).json()["count"]
-        == len(items) - 1
-    )
+    assert client.get("/api/v1/queue", headers=auth).json()["count"] == len(items) - 1
 
 
 def test_digest_lists_pending(db: Session) -> None:
@@ -230,9 +274,9 @@ def test_internal_import_ingests_settled_inbox(
     assert db.query(Invoice).count() == 1
 
 
-def test_internal_token_acts_as_reviewer(client: TestClient) -> None:
-    """The backend facade holds only the internal token; today it may review
-    through the queue endpoints (until authentication lands)."""
+def test_internal_token_can_review(client: TestClient) -> None:
+    """The facade holds only the internal token; it may review through the
+    queue endpoints, with attribution supplied by `X-Reviewer`."""
     headers = {"Authorization": f"Bearer {get_settings().internal_token}"}
     assert client.get("/api/v1/queue", headers=headers).status_code == 200
 
