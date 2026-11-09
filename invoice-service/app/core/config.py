@@ -1,7 +1,7 @@
 """Service configuration.
 
 Phase 0.5 credentials (Gmail OAuth, Drive API, Sheets API) live outside the
-repository per hard rule 3 (`INVOICE_SERVICE_` env vars / a local `.env`).
+repository per hard rule 4 (`INVOICE_SERVICE_` env vars / a local `.env`).
 Every connector degrades to a clean "not configured" skip rather than failing
 the whole pipeline run.
 """
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     review_tokens: dict[str, str] = {}
 
     # Sheets export stays off (feature flag) until the column mapping against
-    # the real accounting sheet is confirmed — hard rule 2.
+    # the real accounting sheet is confirmed — hard rule 3.
     export_enabled: bool = False
 
     # Notifications

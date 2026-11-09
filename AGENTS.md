@@ -10,9 +10,10 @@ The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs
 
 ## Current stage — read before writing code
 
-- Scaffolding has begun: `frontend/` is a React + TypeScript + Vite PWA app (pnpm) and `backend/` is a FastAPI app (uv-managed) with an Alembic baseline and a `/api/v1/health` endpoint. `infra/` is still a placeholder — no Docker Compose yet. All modules are placeholders; the first vertical slice (event creation) is not started.
-- The **Phase 0.5 Invoice Ingestion Quick Win** (README §Phase 0.5) is prioritised ahead of Phase 1 by the club owner. Until the owner answers the Phase 0 questions (README §Phase 0.5, last subsection), do **not** scaffold service code against assumptions.
-- When you create real scaffolding (FastAPI app, React app, Alembic baseline, Docker Compose), update `docs/next-steps.md`, `STATUS.md` and `CHANGE_LOG.md` in the same change so agent-readable state is never stale.
+- The repository holds a working **Phase 0.5 invoice review demo**: `frontend/` (React + TypeScript + Vite PWA, pnpm) with login, forced password change, staff management and invoice review; `backend/` (FastAPI, uv) with health, self-managed auth/users and the invoice facade; `invoice-service/` (FastAPI, uv, own SQLite) with drop-folder ingestion, Tesseract OCR, extraction and the review queue. `infra/docker-compose.yml` runs all three in development.
+- **Delivered vs. stub.** Local drop-folder import, extraction, review (confirm/correct/reject) and reviewer attribution are implemented. **Google Drive ingestion, Gmail ingestion, the scheduled catch-up run and the Google Sheets export are stubs** (`NotImplementedError` once configured; export is feature-flagged off). The digest email can be built but is never sent automatically. Never describe these as delivered in docs or UI copy.
+- The **Phase 0.5 Invoice Ingestion Quick Win** (README §Phase 0.5) is prioritised ahead of Phase 1 by the club owner. Most owner answers are recorded as working assumptions; **credit-note handling and the real sheet's exact tabs/columns/formula columns remain open**. Do not write to the real accounting sheet until that mapping is confirmed (hard rule 3).
+- When you add capabilities or change what works, update `docs/next-steps.md`, `STATUS.md` and `CHANGE_LOG.md` in the same change so agent-readable state is never stale. Keep STATUS honest about stubs and pending manual verification.
 
 ## Planned stack (do not deviate without discussion)
 
@@ -25,9 +26,9 @@ The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs
 ## Repository layout
 
 ```
-frontend/   React + TypeScript + Vite PWA (scaffolded; placeholder UI)
-backend/    FastAPI backend, /api/v1 (scaffolded; health endpoint + Alembic baseline)
-invoice-service/  Phase 0.5 invoice ingestion service (FastAPI + SQLite; pull ingestion, review queue, flag-gated Sheets export)
+frontend/   React + TypeScript + Vite PWA (auth, staff panel, invoice review; no platform modules yet)
+backend/    FastAPI backend, /api/v1 (health, auth/users, invoice facade; no domain modules yet)
+invoice-service/  Phase 0.5 invoice service (FastAPI + SQLite; drop-folder/fixture ingestion + review queue wired; Drive/Gmail/scheduler/Sheets export stubbed)
 infra/      Docker Compose dev stack (backend :8080, frontend :5173, invoice-service :8081), HTTPS setup to come
 docs/       architecture, milestones, next steps
 README.md   full project plan (single source of product truth)

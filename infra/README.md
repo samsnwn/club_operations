@@ -8,11 +8,11 @@ production.
 
 Compose file: `docker-compose.yml` (project name `blue-velvet`).
 
-    docker compose -f infra/docker-compose.yml up -d --build   # start both services
+    docker compose -f infra/docker-compose.yml up -d --build   # start all three services
     docker compose -f infra/docker-compose.yml logs -f         # follow output
     docker compose -f infra/docker-compose.yml down            # stop + remove containers (keep the database volume)
 
-Both services build from `dev` targets of their Dockerfiles.
+All three services build from `dev` targets of their Dockerfiles.
 
 ### Environment and secrets
 
@@ -33,11 +33,13 @@ containers — they are never bind-mounted or committed.
 | --- | --- | --- | --- | --- |
 | `backend` | `backend/Dockerfile` — uv-based, `alembic upgrade head` runs at start | `:8080` | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `db-data:/data` (SQLite) |
 | `frontend` | `frontend/Dockerfile` — node:22 + pinned `pnpm@9.12.0` (corepack activate) | `:5173` | `src/`, `public/`, `index.html`, configs | `frontend-vite-cache` (Vite pre-bundle cache) |
+| `invoice-service` | `invoice-service/Dockerfile` — uv-based + Tesseract, `alembic upgrade head` runs at start | `:8081` (development only) | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `invoice-data:/app/data` (SQLite + originals); `data/inbox` bind for the demo |
 
-Wiring: the browser talks only to `:5173`; the Vite dev-server proxy
-(configured via `BACKEND_URL`, default `http://localhost:8080` on the host,
-`http://backend:8080` in compose) forwards `/api/*` same-origin to the
-backend. No CORS middleware is needed in dev.
+Wiring: the browser talks only to `:5173` for the PWA and to `:8080` for the
+API (the Vite dev-server proxy, configured via `BACKEND_URL`, default
+`http://localhost:8080` on the host, `http://backend:8080` in compose, forwards
+`/api/*` same-origin). The invoice service is called only by the backend facade
+on the compose network. No CORS middleware is needed in dev.
 
 Data discipline:
 
@@ -45,9 +47,14 @@ Data discipline:
   database is not a shared file or a sink for external writes.
 - `docker compose ... down -v` **wipes the database volume**; `down` alone
   keeps it. Treat `down -v` as a fresh-install action, not a debugging step.
-- Real club data stays out of the repository (AGENTS.md hard rule 3); the
-  accounting sheet is an output artifact and nothing in the stack ever gets
-  write access to it (hard rule 1).
+- Real club data stays out of the repository (AGENTS.md hard rule 4); the
+  accounting sheet is an output artifact and nothing in the stack writes to it
+  until the export is deliberately enabled against a confirmed column mapping
+  (hard rule 3).
+- The invoice service's store and captured originals live in the
+  `invoice-data` volume, never a host bind. Its `:8081` port is published only
+  for development; production must keep it internal because its token bypasses
+  facade authentication.
 
 Check parity with CI: tests, lint and formatting run the same commands on the
 host (`uv run pytest`, `pnpm lint`, `pnpm format:check`) or on the bind-mounted
@@ -90,8 +97,10 @@ Open decisions, gated on the Phase 0 owner answers (README §Phase 0):
   production compose details only).
 - Reverse proxy choice (Caddy vs nginx) and HTTPS scheme: LAN-only vs public
   domain. If club data must never leave the building, a public domain is out.
-- Whether the Phase 0.5 invoice service ships as its own container in the same
-  compose network (planned: independent FastAPI service, same patterns,
-  separate runtime).
+- Production packaging and network policy for the Phase 0.5 invoice service:
+  it already runs as its own container in development, but production must not
+  publish `:8081`, and the scheduler/single-run lock still needs a home.
+- Whether a scheduled worker container runs the nightly invoice catch-up and
+  digest, or an import is triggered manually (interim plan A).
 - File-storage volume layout for uploaded documents (invoices, riders) once
   document workflow arrives.

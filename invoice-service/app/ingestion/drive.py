@@ -1,6 +1,6 @@
 """Drive-folder ingestion (primary channel).
 
-NOT YET WIRED: requires Drive API credentials outside the repo (hard rule 3).
+NOT YET WIRED: requires Drive API credentials outside the repo (hard rule 4).
 When credentials exist, this polls one configured folder via changes from the
 sync watermark and captures new files. Until then, `poll` degrades to a clean
 not-configured skip so pipeline runs still succeed.

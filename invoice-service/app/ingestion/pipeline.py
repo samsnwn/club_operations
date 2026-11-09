@@ -1,6 +1,6 @@
 """The ingest pipeline: hash de-duplication, storage, extraction to
 suggestions, and first-pass trust assessment. Everything produces review-queue
-rows — never exports, never sheet writes (hard rules 1 and 2).
+rows — never exports, never sheet writes (hard rules 1 and 3).
 """
 
 import hashlib

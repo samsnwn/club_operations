@@ -1,4 +1,4 @@
-Fixtures — deliberately fake club data (hard rule 3)
+Fixtures — deliberately fake club data (hard rule 4)
 
 Names, suppliers and amounts in this directory are invented for tests and
 local development. Real invoice files are never committed here.

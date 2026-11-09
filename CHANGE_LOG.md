@@ -4,6 +4,56 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project currently has no runtime releases, so entries are dated by change.
 
+## [2026-11-09]
+
+### Added
+- CI now lints both Python services with `ruff check`, validates the compose
+  file with `docker compose config --quiet`, and applies the invoice-service
+  Alembic chain (`alembic upgrade head` against an in-memory SQLite URL) before
+  running its tests. Previously CI enforced Python formatting only, and
+  invoice-service migration drift or a broken compose file could pass
+  unnoticed.
+- `frontend/README.md` replaced the Vite template boilerplate with
+  project-specific instructions (dev servers, API proxy, auth and invoice
+  review flows, build/lint commands).
+
+### Changed
+- Documentation refresh to separate delivered functionality from stubs:
+  `AGENTS.md` current stage, `STATUS.md`, `docs/next-steps.md` and the invoice
+  service README now state explicitly that Drive/Gmail ingestion, the scheduled
+  catch-up run, automatic digest sending and the Sheets export are not
+  implemented. The manual drop-folder → review → confirm flow is described as
+  the current, working demo.
+- `backend/README.md` documents the auth/user routes, roles, CLI bootstrap and
+  invoice facade, which were missing.
+
+### Fixed
+- `STATUS.md` no longer claims the internal-authentication work is uncommitted
+  (it was committed on 2026-11-06), and its test counts now match the suites
+  (46 backend, 21 invoice service).
+- `docs/next-steps.md` no longer implies the invoice service has automatic
+  ingestion; the remaining Phase 0.5 work is listed explicitly.
+- `infra/README.md` now describes all three dev services (including the invoice
+  service and its volumes), corrects the browser/API wiring description, and
+  reflects that the invoice service port is development-only.
+- Hard-rule references in code comments and docs now match the numbering in
+  `AGENTS.md` (accounting sheet = rule 3, no real club data/credentials = rule
+  4, untrusted document contents = rule 7). Historical CHANGE_LOG entries were
+  left unchanged.
+
+### Verified
+- API-level smoke pass against temporary host SQLite databases (Docker was
+  unavailable): both `/api/v1/health` checks, owner CLI bootstrap and login,
+  cross-origin rejection, staff creation, forced staff password change,
+  drop-folder fixture import, confirm-with-corrections with
+  `reviewed_by=smoke-owner`, duplicate-confirm `409`, staff invoice-role
+  `403`, and logout session invalidation. A browser-level pass on the Docker
+  stack remains pending.
+
+No application runtime code, schema or deployment behaviour changed in this
+entry; the changes are documentation and CI, plus comment-only reference
+corrections.
+
 ## [2026-11-06]
 
 ### Fixed

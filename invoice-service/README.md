@@ -15,6 +15,24 @@ the forwarding mailbox and the Drive folder buffer everything, and per-source
 sync watermarks make each catch-up run ingest the full backlog. A quiet period
 produces one collapsed digest email instead of daily silence-breaking ones.
 
+## Current implementation status
+
+| Capability | State |
+| --- | --- |
+| Local drop-folder ingestion (`data/inbox/`) | **Working** — settle detection, size/page limits, content-hash dedupe |
+| Fixture ingestion (`tests/fixtures/`) | **Working** — used by tests; deliberately fake data |
+| Drive folder ingestion | **Stub** — adapter returns "not configured" without credentials and raises `NotImplementedError` when configured |
+| Gmail forwarding-mailbox ingestion | **Stub** — same behaviour as Drive |
+| Text/OCR extraction + field suggestions | **Working** — PDF text layer, UTF-8 text, local Tesseract; generic regex fields |
+| Review queue (list/detail/confirm/reject, attribution) | **Working** |
+| Scheduled catch-up run | **Stub** — nothing periodic runs; import is triggered manually |
+| Digest email | **Builder working** — not scheduled or triggered automatically |
+| Google Sheets export | **Stub** — feature-flagged off; raises when enabled |
+
+The end-to-end demo today is therefore: drop files into `data/inbox/`, click
+**Import invoices**, review/confirm. Confirmed invoices are recorded but not
+yet exported anywhere.
+
 ## Layout
 
 - `app/ingestion/` — capture sources (Drive, Gmail, fixtures for tests), the
@@ -24,7 +42,7 @@ produces one collapsed digest email instead of daily silence-breaking ones.
 - `app/review/` — the queue API: pending items, confirm/correct/reject.
   Only confirmed invoices can ever be exported.
 - `app/export/` — Google Sheets writer, **feature-flagged off** until the
-  column mapping is confirmed against the real sheet (hard rule 2).
+  column mapping is confirmed against the real sheet (hard rule 3).
 - `app/notify/` — digest builder/sender (email to the owner).
 - `alembic/` — migrations for this service's own SQLite store.
 
@@ -39,7 +57,9 @@ API docs: `http://localhost:8081/docs` — health under `/api/v1/health`.
 
 Until real Gmail/Drive credentials exist, the ingestion command-line/test path
 uses the fixture source (`tests/fixtures/`, deliberately fake club data); the
-Gmail/Drive adapters log a clear "not configured" and skip cleanly.
+Gmail/Drive adapters log a clear "not configured" and skip cleanly. Note that
+supplying credentials today would reach `NotImplementedError`: the adapters are
+placeholders, not a working integration.
 
 For a real-invoice demonstration, copy PDFs or images into
 `data/inbox/` and click **Import invoices** in the frontend. The folder is

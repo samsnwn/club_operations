@@ -1,7 +1,7 @@
 """Fixture ingestion source — clearly fake club data for development/tests.
 
 Feeds the pipeline locally until real Gmail/Drive credentials exist, and keeps
-the corpus reproducible for tests (hard rule 3: no real club data ever).
+the corpus reproducible for tests (hard rule 4: no real club data ever).
 """
 
 from dataclasses import dataclass
