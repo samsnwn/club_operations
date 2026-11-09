@@ -5,7 +5,7 @@ is only trusted together with the internal service token. Per-user bearer
 tokens (owner + one admin — owner answer #5) remain as a direct-use fallback.
 
 Only CONFIRMED invoices are eligible for export — the human review point is
-the gate between extraction and the accounting sheet (hard rule 1).
+the gate between extraction and the accounting sheet (hard rules 1 and 3).
 """
 
 import datetime as dt

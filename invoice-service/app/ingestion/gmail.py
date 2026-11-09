@@ -1,7 +1,7 @@
 """Gmail ingestion (secondary, automated channel) via the dedicated
 forwarding mailbox.
 
-NOT YET WIRED: Gmail API credentials live outside the repo (hard rule 3).
+NOT YET WIRED: Gmail API credentials live outside the repo (hard rule 4).
 When configured, this polls the forwarding mailbox with `since`-watermark
 semantics, extracts attachments, and labels processed messages (never
 deletes). Until then it degrades to a clean not-configured skip.

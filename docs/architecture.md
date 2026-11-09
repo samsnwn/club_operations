@@ -1,13 +1,30 @@
 # Initial Architecture Skeleton
 
-This repository uses a modular-monolith direction with separate frontend and backend workspaces.
+This repository uses a modular-monolith direction: a React PWA frontend, the
+FastAPI platform backend, and (for now) an independent Phase 0.5 invoice
+service.
 
-## Planned top-level structure
+## Top-level structure
 
 - `frontend/` — React + TypeScript + Vite PWA
-- `backend/` — FastAPI backend (`/api/v1`)
+- `backend/` — FastAPI platform backend (`/api/v1`)
+- `invoice-service/` — independent Phase 0.5 invoice ingestion/review service (`/api/v1`, own SQLite store)
 - `infra/` — deployment and environment scaffolding (Docker Compose, HTTPS setup)
 - `docs/` — product, architecture, milestones, and implementation notes
+
+## Phase 0.5 invoice service boundary
+
+The invoice service is deliberately separate and owns its SQLite store plus
+captured original files. The browser only talks to the platform backend, which
+exposes an owner/admin-only facade under `/api/v1/invoices/*`. The service's
+own port (`:8081`) must remain internal because its token bypasses facade
+authentication.
+
+Implemented today: local drop-folder/fixture ingestion, extraction and the
+review queue. Stubbed: Drive and Gmail ingestion, the scheduled catch-up run,
+automatic digest sending and Google Sheets export. Confirmed invoice data is
+intended to flow into the main platform's Documents and Finance modules later
+rather than being throwaway work.
 
 ## Data and integration direction
 

@@ -722,7 +722,7 @@ below is written against them and will be adjusted where reality differs.
 
 1. **Sheet location:** Google Drive → the service writes through the **Google
    Sheets API** (append-only; existing rows and formula columns are never
-   touched — output artifact, hard rule 2).
+   touched — output artifact, hard rule 3).
 2. **Email:** Gmail, with a **dedicated forwarding mailbox** created for the
    service (owner's daily mailbox untouched, exactly the "cleaner alternative"
    described above). Gmail API via OAuth for that mailbox only.

@@ -2,7 +2,7 @@
 score (README §Phase 0.5). Text-layer based for now (PDF text and Tesseract
 output); supplier-specific templates arrive per-supplier as real data lands.
 
-Document contents are untrusted input (hard rule 6): defensive regexes only,
+Document contents are untrusted input (hard rule 7): defensive regexes only,
 nothing here acts beyond recording suggestions in the review queue.
 """
 
