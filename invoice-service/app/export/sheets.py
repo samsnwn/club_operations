@@ -8,7 +8,7 @@ The design is fixed already, so wiring later is mechanical:
   net, VAT, gross, category, payment method, description, hash;
 - corrected/re-exported invoices append a new row with a supersede note —
   the sheet is never edited in place and formula columns are never touched
-  (hard rules 1 and 2).
+  (hard rules 1 and 3).
 """
 
 from sqlalchemy.orm import Session

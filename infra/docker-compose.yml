@@ -1,7 +1,7 @@
 # Phase 0.5 dev stack entry: independent FastAPI service on :8081.
 # Sources bind-mounted for hot reload; invoice store (SQLite) and captured
 # originals stay in named volumes — club invoice files never live outside a
-# volume (hard rule 3). Migrations apply before serving, same pattern as the
+# volume (hard rule 4). Migrations apply before serving, same pattern as the
 # main backend.
 
 name: blue-velvet
@@ -81,7 +81,7 @@ services:
       - ../invoice-service/alembic.ini:/app/alembic.ini
       - ../invoice-service/pyproject.toml:/app/pyproject.toml
       - ../invoice-service/uv.lock:/app/uv.lock
-    # Review tokens and mail creds come from env when they exist (hard rule 3).
+    # Review tokens and mail creds come from env when they exist (hard rule 4).
     # Until Gmail/Drive credentials are present, ingestion degrades to fixture
     # mode — see invoice-service/README.md.
     command: ["sh", "-c", "uv run alembic upgrade head && uvicorn app.main:app --reload --host 0.0.0.0 --port 8081"]

@@ -1,75 +1,53 @@
-# React + TypeScript + Vite
+# Blue Velvet Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite PWA (pnpm) for the Club Operations Platform. It is
+currently the **Phase 0.5 frontend**: internal sign-in, staff-account
+management and the invoice review workspace. No platform modules (dashboard,
+events, promoter form, mobile stock counts) exist yet.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The backend must be running for authentication and invoice data. Same-origin
+`/api` requests are proxied by Vite (`vite.config.ts`):
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm install
+pnpm run dev        # http://localhost:5173, proxies /api to BACKEND_URL
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+`BACKEND_URL` defaults to `http://localhost:8080`; Docker Compose sets it to
+`http://backend:8080`. Keep the frontend and backend on the same origin (the
+proxy) — there is no CORS middleware.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Build and lint
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm run build      # type-check + production build (also emits the PWA service worker)
+pnpm run lint
 ```
+
+Repository-wide formatting is run from the repository root with
+`pnpm format` / `pnpm format:check` (Prettier for web files).
+
+## Structure
+
+- `src/api.ts` — typed same-origin fetch wrapper and `ApiError`.
+- `src/auth.ts` — typed auth/user calls.
+- `src/App.tsx` — session shell: checking → login → forced password change →
+  role-aware views (invoices / staff / password / staff home).
+- `src/Login.tsx`, `src/ChangePassword.tsx` — sign-in and password flow.
+- `src/StaffPanel.tsx` — account management (owner/admin).
+- `src/InvoiceWorkspace.tsx` — import, review queue, corrections,
+  confirm/reject, extracted text and original preview.
+
+## Access behaviour
+
+- `owner` and `admin` see the invoice workspace and staff panel.
+- `staff` can sign in and change their own password only; they land on a
+  no-modules home and never receive invoice data.
+- Accounts flagged `must_change_password` are forced through
+  `ChangePassword` before any normal view.
+- Expired/invalid sessions return to the login screen.
+
+Navigation is local React state, not URL routing, and there is no IndexedDB
+offline queue yet — the PWA baseline only precaches the app shell.

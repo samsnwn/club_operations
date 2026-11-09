@@ -17,6 +17,31 @@ uv run uvicorn app.main:app --reload --port 8080
 
 Interactive API docs: `http://localhost:8080/docs`.
 
+## API surface
+
+- `/api/v1/health` — service + database round-trip.
+- `/api/v1/auth/*` — `login`, `logout`, `me`, `password`.
+- `/api/v1/users` — account management (owner manages everyone; admin manages
+  `staff`; no self-registration).
+- `/api/v1/invoices/*` — thin facade over the independent invoice service.
+  Owner/admin only; the browser never talks to the invoice service directly.
+
+## Accounts and roles
+
+Accounts are created by an administrator inside the app; there is no public
+registration. The first owner is bootstrapped from the CLI (the password is
+prompted for, or read from `NEW_USER_PASSWORD`):
+
+```bash
+uv run python -m app.cli create-user --username owner --role owner
+uv run python -m app.cli reset-password --username owner
+```
+
+Roles are `owner` (manages every account), `admin` (manages `staff` accounts)
+and `staff` (sign-in and own password only). Administrator-created and reset
+accounts must change their password at first sign-in. Sessions are opaque
+HttpOnly cookies; only their SHA-256 hash is stored.
+
 ## Migrations
 
 ```bash
