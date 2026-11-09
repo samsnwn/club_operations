@@ -66,12 +66,17 @@ services:
       target: dev
     init: true
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     env_file:
       # Gitignored service settings, including INVOICE_INTERNAL_TOKEN; the
       # token must match backend/.env INVOICE_SERVICE_TOKEN.
       - path: ../invoice-service/.env
         required: false
+    environment:
+      # The service refuses to start with the known development token in
+      # production. The dev stack opts into development explicitly; production
+      # compose overrides must set "production" and a unique token.
+      INVOICE_ENVIRONMENT: "development"
     volumes:
       - invoice-data:/app/data
       - ../invoice-service/data/inbox:/app/data/inbox

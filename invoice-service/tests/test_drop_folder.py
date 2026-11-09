@@ -10,8 +10,6 @@ from pathlib import Path
 
 import pytest
 
-os.environ.setdefault("INVOICE_DATABASE_URL", "sqlite:///:memory:")  # pragma: env-safe
-
 from app.ingestion import drop_folder
 from app.ingestion.drop_folder import DropFolderSource
 

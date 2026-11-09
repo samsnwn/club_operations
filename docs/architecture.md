@@ -61,5 +61,8 @@ rather than being throwaway work.
   forwards the username as `X-Reviewer` alongside the internal service token.
   The invoice service trusts `X-Reviewer` **only** when the internal token is
   also valid, and records it as `reviewed_by`; a token-only call remains
-  attributed to `backend`. The invoice service port (`:8081`) must stay
-  internal because that token bypasses facade authentication.
+  attributed to `backend`. Per-user review tokens are no longer supported.
+  The invoice service port (`:8081`) must stay internal because that token
+  bypasses facade authentication; the dev compose binds it to loopback only,
+  and the service refuses to start with the known development token outside
+  `INVOICE_ENVIRONMENT=development`.

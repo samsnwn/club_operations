@@ -783,8 +783,11 @@ box with no rework the moment the hardware exists.
   `backend`.
 - Production requirements: serve over HTTPS and set
   `SESSION_COOKIE_SECURE=true`; set `ALLOWED_ORIGINS` to the real frontend
-  origin; and keep the invoice service (`:8081`) internal-only, because its
-  internal token bypasses the facade's authentication.
+  origin; keep the invoice service (`:8081`) internal-only, because its
+  internal token bypasses the facade's authentication; and run it with
+  `INVOICE_ENVIRONMENT=production` plus a unique `INVOICE_INTERNAL_TOKEN`
+  (startup refuses the known development default). Per-user review tokens are
+  not supported.
 
 ### Phase 1 — Project Foundation
 
