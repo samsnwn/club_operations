@@ -8,8 +8,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.auth.throttle import login_throttle
 from app.db.base import Base, get_db
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def _fresh_login_throttle() -> Iterator[None]:
+    """Failed-login counters are process-wide; never leak them between tests."""
+    login_throttle.clear()
+    yield
+    login_throttle.clear()
 
 
 @pytest.fixture(name="db_factory")
