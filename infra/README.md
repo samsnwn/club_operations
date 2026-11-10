@@ -14,6 +14,19 @@ Compose file: `docker-compose.yml` (project name `blue-velvet`).
 
 All three services build from `dev` targets of their Dockerfiles.
 
+### Fresh start (after `down -v`)
+
+1. `docker compose -f infra/docker-compose.yml up -d --build` — both Python
+   services run `alembic upgrade head` on startup, so no manual migration is
+   needed.
+2. `pnpm create-owner <username>` (repository root) — the wiped database has no
+   accounts and there is no public registration. Prompts twice for a password
+   (min. 12 characters).
+3. Sign in at http://localhost:5173; create further accounts from the Staff tab.
+
+Migrations need a manual run only when a new revision arrives while the stack
+is already running: `pnpm migrate` (or restart the two Python services).
+
 ### Environment and secrets
 
 Each service loads an optional, gitignored `.env` through Compose `env_file`:
@@ -96,6 +109,47 @@ Reuse of the same images at `prod` targets is the roadmap:
    tables exist).
 6. **Backups**: scheduled export or file-level copy of the SQLite volume.
    Redis/Postgres-style stores can arrive later without changing this pattern.
+
+### Runbook: account bootstrap and recovery
+
+The account CLI (`backend/app/cli.py`) is not an HTTP endpoint; it runs only
+from a shell on the host with access to the Docker daemon. That host access
+**is** the security boundary: anyone who has it can already read the SQLite
+volume and the `.env` secrets, so the CLI adds no new exposure. Protect the
+host, not the command:
+
+- Shell access only for the operators (owner + technical admin), SSH keys
+  only, no password login. Docker group membership is root-equivalent — grant
+  it to nobody else.
+- Only the reverse proxy is published; `:8080` and `:8081` stay internal.
+
+`pnpm create-owner` is a development shortcut (it targets the dev compose file
+and needs Node on the host). On the production host, call the CLI directly in
+the `prod` image (the virtualenv is on `PATH`, no `uv` needed). The production
+override file below is still planned; adjust the `-f` flags once it exists.
+
+**First install** (once, after migrations have run):
+
+    docker compose -f infra/docker-compose.yml -f infra/docker-compose.production.yml \
+      exec backend python -m app.cli create-user --username <owner> --role owner
+
+The password is prompted twice without echo (min. 12 characters). Do not pass
+it through `NEW_USER_PASSWORD` on a production host — it would land in shell
+history or process listings. Every further account (admins, staff) is created
+in the app's Staff tab, never with the CLI.
+
+**Owner locked out / forgotten password:**
+
+    docker compose -f infra/docker-compose.yml -f infra/docker-compose.production.yml \
+      exec backend python -m app.cli reset-password --username <owner>
+
+This revokes every session of that account and forces a new password at the
+next sign-in.
+
+**Suspected compromise:** reset the affected account's password as above,
+deactivate unknown accounts in the Staff tab (deactivation revokes their
+sessions), review the account list for owners you did not create, and rotate
+`INVOICE_SERVICE_TOKEN` / `INVOICE_INTERNAL_TOKEN` if host access is in doubt.
 
 Open decisions, gated on the Phase 0 owner answers (README §Phase 0):
 
