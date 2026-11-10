@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 
 ## [2026-11-10]
 
+### Fixed
+- Invoice import no longer fails on slow OCR runs: the backend facade gives
+  the import call its own 15-minute budget (other calls keep 30 s), the invoice
+  service runs one import at a time (a second request gets 409 "An import is
+  already running"), and a unique-constraint collision during ingest is
+  treated as a duplicate instead of a 500.
+- One failing file no longer aborts an import run: failures are isolated per
+  file, logged, and the source's watermark is not advanced so the file is
+  retried. Duplicates are now detected before PDF parsing, so files left in
+  the drop folder are not re-parsed on every import.
+- Review gate tightened (hard rule 1): confirm and reject are only possible
+  from `pending_review`/`needs_attention` (a rejected invoice can no longer be
+  confirmed; repeated reviews get 409), the transition is a conditional update
+  so two reviewers cannot both win, and confirm requires `supplier`,
+  `invoice_date` and `gross` (422 otherwise) so a confirmed row is never blank.
+- Amount entry in invoice review accepts `1.234,56`, `1234,56` and `1234.56`
+  and refuses ambiguous input such as `1.234` instead of silently storing
+  1.234 (`frontend/src/amounts.ts`).
+- The facade now passes the invoice service's own error `detail` through, so
+  the UI shows the message rather than raw JSON. A 401/403 from the invoice
+  service (internal-token mismatch) is reported as 502 and logged instead of
+  reaching the browser as an authentication error that the UI swallowed.
+- Failed sign-ins are throttled: after 10 failures per account name or 30 per
+  client address within 15 minutes (`LOGIN_*` settings), further attempts get
+  429 with `Retry-After` before any password hashing. Concurrent Argon2 runs
+  are capped at four and passwords are limited to 1024 characters. Counters
+  are in memory and per process; behind a reverse proxy uvicorn needs
+  `--proxy-headers` for per-client addresses.
+- Digest SMTP (still not triggered automatically) only sends over verified
+  TLS — implicit TLS on port 465, STARTTLS with certificate verification
+  otherwise — with a 30 s timeout and no plaintext fallback.
+
 ### Added
 - `pnpm create-owner <username>` root script: bootstraps the first owner in the
   running dev stack via the backend CLI (password prompted, never in shell
