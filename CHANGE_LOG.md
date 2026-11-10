@@ -4,6 +4,38 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project currently has no runtime releases, so entries are dated by change.
 
+## [2026-11-10]
+
+### Added
+- `pnpm create-owner <username>` root script: bootstraps the first owner in the
+  running dev stack via the backend CLI (password prompted, never in shell
+  history). Fresh-start order documented in `infra/README.md`; listed in
+  AGENTS.md commands and `backend/README.md`.
+- Production account runbook in `infra/README.md`: host access as the security
+  boundary for the account CLI, first-owner bootstrap and owner recovery on the
+  `prod` image, and steps for a suspected compromise.
+- Blue Velvet design system derived from the club's street sign:
+  `docs/design-system.md` (palette, semantic roles, contrast rules,
+  typography, components, layout patterns, do/don't).
+- Frontend design tokens (`frontend/src/styles/tokens.css`) with Night
+  (default) and Day themes, exposed as Tailwind v4 utilities; shared UI
+  primitives (`frontend/src/styles/components.css`: buttons, nav tabs, cards,
+  fields, badges, alerts, confidence meter); brand components
+  `Sign`/`Wordmark`/`Crest` and a per-device `ThemeToggle` (`frontend/src/ui/`).
+- Tailwind CSS v4 (`@tailwindcss/vite`) and self-hosted fonts
+  (`@fontsource-variable/inter`, `@fontsource/lobster`) — no font CDN.
+
+### Changed
+- Login, forced/regular password change, invoice queue and review, and staff
+  panel restyled with the design system: sign-style app header with section
+  tabs, status badges mapped to invoice states, confidence meters, sticky
+  mobile review actions.
+- New BV favicon, page title "Blue Velvet", PWA manifest theme/background
+  colour and icon, and `theme-color` meta tags per theme.
+
+### Removed
+- Vite template assets (`hero.png`, `react.svg`, `vite.svg`, `icons.svg`).
+
 ## [2026-11-09]
 
 ### Added

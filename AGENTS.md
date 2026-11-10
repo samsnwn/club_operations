@@ -6,7 +6,7 @@ Instructions for AI coding agents working in this repository.
 
 A self-hosted **Club Operations Platform** for a nightclub: management dashboard, staff mobile interface and promoter submission form, built as one responsive PWA with a local-first backend (FastAPI + SQLite) and a later-read-only local AI assistant.
 
-The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs/architecture.md`](docs/architecture.md), [`docs/milestones.md`](docs/milestones.md), [`docs/next-steps.md`](docs/next-steps.md). Current stage: [`STATUS.md`](STATUS.md). History: [`CHANGE_LOG.md`](CHANGE_LOG.md).
+The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs/architecture.md`](docs/architecture.md), [`docs/design-system.md`](docs/design-system.md), [`docs/milestones.md`](docs/milestones.md), [`docs/next-steps.md`](docs/next-steps.md). Current stage: [`STATUS.md`](STATUS.md). History: [`CHANGE_LOG.md`](CHANGE_LOG.md).
 
 ## Current stage — read before writing code
 
@@ -18,7 +18,8 @@ The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs
 
 ## Planned stack (do not deviate without discussion)
 
-- **Frontend:** React, TypeScript, Vite, Tailwind CSS, Vite PWA plugin, IndexedDB for offline.
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS (v4), Vite PWA plugin, IndexedDB for offline.
+- **Visual design:** follow [`docs/design-system.md`](docs/design-system.md) (derived from the club's sign). Use semantic tokens from `frontend/src/styles/tokens.css` and the primitives in `frontend/src/styles/components.css`; no raw hex values in components; check Night and Day themes.
 - **Backend:** Python, FastAPI, Pydantic, SQLAlchemy, Alembic; versioned REST API under `/api/v1/`.
 - **Database:** SQLite (FTS5 for keyword search later).
 - **Deployment:** Docker Compose; everything self-hosted on club infrastructure.
@@ -31,7 +32,7 @@ frontend/   React + TypeScript + Vite PWA (auth, staff panel, invoice review; no
 backend/    FastAPI backend, /api/v1 (health, auth/users, invoice facade; no domain modules yet)
 invoice-service/  Phase 0.5 invoice service (FastAPI + SQLite; drop-folder/fixture ingestion + review queue wired; Drive/Gmail/scheduler/Sheets export stubbed)
 infra/      Docker Compose dev stack (backend :8080, frontend :5173, invoice-service :8081), HTTPS setup to come
-docs/       architecture, milestones, next steps
+docs/       architecture, design system, milestones, next steps
 README.md   full project plan (single source of product truth)
 AGENTS.md   this file — conventions and guardrails for agents
 STATUS.md   current project status snapshot
@@ -47,6 +48,7 @@ docker compose -f infra/docker-compose.yml up -d --build   # start backend :8080
 docker compose -f infra/docker-compose.yml logs -f         # follow both servers' output
 docker compose -f infra/docker-compose.yml exec backend uv run alembic revision --autogenerate -m "<message>"  # new schema revision
 docker compose -f infra/docker-compose.yml down            # stop and remove containers (keep the database volume; add -v to wipe it)
+pnpm create-owner <username>                               # first owner after a fresh start (stack running; prompts for the password)
 ```
 
 Optional per-service overrides (gitignored; Compose injects them via `env_file`):
