@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   the plan. `factory/jobs/` and `.worktrees/` are gitignored.
 
 ### Fixed
+- Backend `GET /api/v1/health` returns 503 with
+  `{"status": "degraded", "database": "error"}` when the database round-trip
+  fails, instead of a generic 500. The error is logged server-side and never
+  echoed in the response; the success response is unchanged.
 - Invoice import no longer fails on slow OCR runs: the backend facade gives
   the import call its own 15-minute budget (other calls keep 30 s), the invoice
   service runs one import at a time (a second request gets 409 "An import is
