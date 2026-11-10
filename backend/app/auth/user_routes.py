@@ -12,7 +12,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.auth.accounts import MIN_PASSWORD_LENGTH, USERNAME_PATTERN, Role
+from app.auth.accounts import (
+    MAX_PASSWORD_LENGTH,
+    MIN_PASSWORD_LENGTH,
+    USERNAME_PATTERN,
+    Role,
+)
 from app.auth.dependencies import require_role
 from app.auth.security import hash_password
 from app.auth.sessions import delete_user_sessions
@@ -26,7 +31,9 @@ Manager = Annotated[User, Depends(require_role("owner", "admin"))]
 
 class CreateUserPayload(BaseModel):
     username: str = Field(min_length=1, max_length=32, pattern=USERNAME_PATTERN.pattern)
-    password: str = Field(min_length=MIN_PASSWORD_LENGTH)
+    password: str = Field(
+        min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH
+    )
     role: Role = "staff"
 
 
@@ -36,7 +43,9 @@ class UpdateUserPayload(BaseModel):
 
 
 class ResetPasswordPayload(BaseModel):
-    new_password: str = Field(min_length=MIN_PASSWORD_LENGTH)
+    new_password: str = Field(
+        min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH
+    )
 
 
 def _public(user: User) -> dict:

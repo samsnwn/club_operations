@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { parseAmount } from './amounts';
 import { ApiError, request } from './api';
 
 type Invoice = {
@@ -126,10 +127,12 @@ export function InvoiceWorkspace({ onAuthProblem }: Props) {
         for (const [field] of reviewFields) {
           const value = values[field]?.trim();
           if (!value) continue;
-          if (['net', 'vat', 'gross'].includes(field)) {
-            const parsed = Number(value);
-            if (!Number.isFinite(parsed)) {
-              setMessage(`Invalid number for ${field}`);
+          if (amountFields.has(field)) {
+            const parsed = parseAmount(value);
+            if (parsed === null) {
+              setMessage(
+                `Enter ${field} as 1234,56 or 1234.56 — "${value}" is not a clear amount`,
+              );
               return;
             }
             payload[field] = parsed;

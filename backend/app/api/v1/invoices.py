@@ -6,6 +6,7 @@ uses to attribute confirm/reject actions. The username is taken from the
 authenticated session, never from an inbound header.
 """
 
+import logging
 from typing import Annotated, Any
 
 import httpx
@@ -17,6 +18,7 @@ from app.core.config import get_settings
 from app.models import User
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
+log = logging.getLogger(__name__)
 
 # Invoice review is an owner/admin capability. Staff accounts can sign in and
 # manage their own password, but have no access to invoice data.
@@ -28,6 +30,22 @@ def _service_headers(reviewer: str) -> dict[str, str]:
         "Authorization": f"Bearer {get_settings().invoice_service_token}",
         "X-Reviewer": reviewer,
     }
+
+
+# An import runs extraction synchronously in the invoice service and OCR may
+# take up to two minutes per scanned file, so it gets its own budget.
+IMPORT_TIMEOUT_SECONDS = 900.0
+
+
+def _upstream_detail(response: httpx.Response) -> Any:
+    """The service's own `detail`, so the UI shows its message, not raw JSON."""
+    try:
+        body = response.json()
+    except ValueError:
+        return response.text
+    if isinstance(body, dict) and "detail" in body:
+        return body["detail"]
+    return response.text
 
 
 def _client() -> httpx.AsyncClient:
@@ -43,9 +61,11 @@ async def _request(
     json: dict[str, Any] | None = None,
     params: dict[str, str] | None = None,
     raw_response: bool = False,
+    timeout: float | None = None,
 ) -> Any:
     settings = get_settings()
     url = f"{settings.invoice_service_url.rstrip('/')}{path}"
+    extra: dict[str, Any] = {} if timeout is None else {"timeout": timeout}
     try:
         async with _client() as client:
             response = await client.request(
@@ -54,13 +74,30 @@ async def _request(
                 headers=_service_headers(reviewer),
                 json=json,
                 params=params,
+                **extra,
             )
     except httpx.RequestError as exc:
         raise HTTPException(
             status_code=503, detail="Invoice service unavailable"
         ) from exc
+    if response.status_code in (401, 403):
+        # The service refused the facade's own credentials (token mismatch).
+        # That is a deployment fault, not the signed-in user's session, so it
+        # must not reach the browser as an authentication error.
+        log.error(
+            "Invoice service rejected the internal token (%s) for %s %s",
+            response.status_code,
+            method,
+            path,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Invoice service rejected the platform's credentials",
+        )
     if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        raise HTTPException(
+            status_code=response.status_code, detail=_upstream_detail(response)
+        )
     if raw_response:
         return response
     return response.json()
@@ -69,7 +106,10 @@ async def _request(
 @router.post("/import")
 async def import_invoices(user: InvoiceReviewer) -> dict:
     return await _request(
-        "POST", "/api/v1/internal/invoices/import", reviewer=user.username
+        "POST",
+        "/api/v1/internal/invoices/import",
+        reviewer=user.username,
+        timeout=IMPORT_TIMEOUT_SECONDS,
     )
 
 

@@ -9,8 +9,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.api.v1 import invoices as invoice_routes
 from app.core.config import DEFAULT_INTERNAL_TOKEN, get_settings
 from app.db.base import Base, SessionLocal, engine
+from app.ingestion import pipeline
 from app.ingestion.fixtures import FixtureSource
 from app.ingestion.pipeline import ingest_file, poll_sources
 from app.main import create_app
@@ -145,6 +147,14 @@ def test_empty_internal_token_is_refused(monkeypatch: pytest.MonkeyPatch) -> Non
         get_settings.cache_clear()
 
 
+# The minimum a reviewer must supply before a row may be confirmed.
+VALID_REVIEW = {
+    "supplier": "Musterveu GmbH",
+    "invoice_date": "2026-11-01",
+    "gross": 1190.00,
+}
+
+
 def _first_queue_item(client: TestClient) -> dict:
     return client.get(
         "/api/v1/queue",
@@ -164,7 +174,7 @@ def test_facade_reviewer_header_marks_confirming_user(
             "Authorization": f"Bearer {get_settings().internal_token}",
             "X-Reviewer": "owner",
         },
-        json={},
+        json=VALID_REVIEW,
     )
     assert response.status_code == 200
     assert response.json()["reviewed_by"] == "owner"
@@ -181,7 +191,7 @@ def test_internal_token_without_reviewer_header_is_backend(
     response = client.post(
         f"/api/v1/queue/{target['id']}/confirm",
         headers={"Authorization": f"Bearer {get_settings().internal_token}"},
-        json={},
+        json=VALID_REVIEW,
     )
     assert response.json()["reviewed_by"] == "backend"
 
@@ -202,7 +212,7 @@ def test_reviewer_header_is_trimmed_and_capped(client: TestClient, db: Session) 
             "Authorization": f"Bearer {get_settings().internal_token}",
             "X-Reviewer": f"  {'x' * 100}  ",
         },
-        json={},
+        json=VALID_REVIEW,
     )
     assert response.json()["reviewed_by"] == "x" * MAX_REVIEWER_LENGTH
 
@@ -215,7 +225,7 @@ def test_review_flow_confirm_with_corrections(client: TestClient, db: Session) -
     response = client.post(
         f"/api/v1/queue/{target['id']}/confirm",
         headers={**auth, "X-Reviewer": "admin"},
-        json={"gross": 1190.00, "supplier": "Musterveru GmbH"},
+        json={**VALID_REVIEW, "supplier": "Musterveru GmbH"},
     )
     assert response.json() == {
         "id": target["id"],
@@ -313,3 +323,109 @@ def test_internal_original_serves_stored_capture(
         assert response.headers["content-type"] == "application/pdf"
     finally:
         get_settings.cache_clear()
+
+
+def _auth() -> dict:
+    return {"Authorization": f"Bearer {get_settings().internal_token}"}
+
+
+def test_confirm_requires_the_minimum_fields(client: TestClient, db: Session) -> None:
+    """An empty review must never produce an export-eligible row."""
+    run_fixture_ingest(db)
+    target = _first_queue_item(client)
+    response = client.post(
+        f"/api/v1/queue/{target['id']}/confirm",
+        headers=_auth(),
+        json={"supplier": "   ", "gross": 10.0},
+    )
+    assert response.status_code == 422
+    assert "supplier" in response.json()["detail"]
+    assert "invoice_date" in response.json()["detail"]
+    db.expire_all()
+    assert db.get(Invoice, target["id"]).status != "confirmed"
+
+
+def test_rejected_invoice_cannot_be_confirmed(client: TestClient, db: Session) -> None:
+    run_fixture_ingest(db)
+    target = _first_queue_item(client)
+    url = f"/api/v1/queue/{target['id']}"
+    assert client.post(f"{url}/reject", headers=_auth()).status_code == 200
+    response = client.post(f"{url}/confirm", headers=_auth(), json=VALID_REVIEW)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Already rejected"
+    db.expire_all()
+    invoice = db.get(Invoice, target["id"])
+    assert invoice.status == "rejected"
+    assert invoice.supplier_final is None
+
+
+def test_confirmed_invoice_cannot_be_reviewed_again(
+    client: TestClient, db: Session
+) -> None:
+    run_fixture_ingest(db)
+    target = _first_queue_item(client)
+    url = f"/api/v1/queue/{target['id']}"
+    first = {**_auth(), "X-Reviewer": "owner"}
+    second = {**_auth(), "X-Reviewer": "admin"}
+    assert client.post(f"{url}/confirm", headers=first, json=VALID_REVIEW).is_success
+    assert (
+        client.post(f"{url}/confirm", headers=second, json=VALID_REVIEW).status_code
+        == 409
+    )
+    assert client.post(f"{url}/reject", headers=second).status_code == 409
+    db.expire_all()
+    invoice = db.get(Invoice, target["id"])
+    assert (invoice.status, invoice.reviewed_by) == ("confirmed", "owner")
+
+
+def test_one_failing_file_does_not_abort_the_run(
+    db: Session, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    real_extract = pipeline.field_parser.extract_fields
+    calls = {"count": 0}
+
+    def flaky(text: str):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("boom")
+        return real_extract(text)
+
+    monkeypatch.setattr(pipeline.field_parser, "extract_fields", flaky)
+    try:
+        # First fixture fails, the other two still land.
+        assert run_fixture_ingest(db) == 2
+        # The watermark did not advance past the failure, so it is retried.
+        assert run_fixture_ingest(db) == 1
+    finally:
+        get_settings.cache_clear()
+    assert db.query(Invoice).count() == 3
+
+
+def test_duplicate_is_skipped_before_pdf_parsing(
+    db: Session, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    try:
+        capture = CapturedTestFile(b"%PDF-1.5 handwritten test capture")
+        assert ingest_file(db, capture) is True
+
+        def no_parse(content: bytes) -> int:
+            raise AssertionError("an already-ingested PDF must not be re-parsed")
+
+        monkeypatch.setattr(pipeline.text_extractor, "pdf_page_count", no_parse)
+        assert ingest_file(db, capture) is False
+    finally:
+        get_settings.cache_clear()
+
+
+def test_concurrent_import_is_refused(client: TestClient) -> None:
+    assert invoice_routes._import_lock.acquire(blocking=False)
+    try:
+        response = client.post("/api/v1/internal/invoices/import", headers=_auth())
+    finally:
+        invoice_routes._import_lock.release()
+    assert response.status_code == 409
+    assert response.json()["detail"] == "An import is already running"
