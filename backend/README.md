@@ -19,7 +19,8 @@ Interactive API docs: `http://localhost:8080/docs`.
 
 ## API surface
 
-- `/api/v1/health` — service + database round-trip.
+- `/api/v1/health` — service + database round-trip; returns 503
+  `{"status": "degraded", "database": "error"}` when the database check fails.
 - `/api/v1/auth/*` — `login`, `logout`, `me`, `password`.
 - `/api/v1/users` — account management (owner manages everyone; admin manages
   `staff`; no self-registration).
