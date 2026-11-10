@@ -33,6 +33,22 @@ type Props = {
   onAuthProblem: () => void;
 };
 
+const amountFields = new Set(['net', 'vat', 'gross']);
+
+/** Maps invoice-service statuses onto the badge palette (docs/design-system.md). */
+function statusTone(status: string) {
+  if (status === 'needs_attention') return 'badge-warning';
+  if (status === 'confirmed' || status === 'exported') return 'badge-success';
+  if (status === 'rejected' || status === 'failed') return 'badge-danger';
+  return 'badge-info';
+}
+
+function confidenceLevel(confidence: number) {
+  if (confidence < 0.5) return 'low';
+  if (confidence >= 0.85) return 'high';
+  return 'medium';
+}
+
 export function InvoiceWorkspace({ onAuthProblem }: Props) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selected, setSelected] = useState<InvoiceDetail | null>(null);
@@ -179,14 +195,16 @@ export function InvoiceWorkspace({ onAuthProblem }: Props) {
         </p>
         <button
           type="button"
+          className="btn btn-primary"
           onClick={() => void importInvoices()}
           disabled={busy}
+          aria-busy={importing}
         >
           {importing ? 'Importing…' : 'Import invoices'}
         </button>
       </div>
       {selected ? (
-        <section className="review-panel" aria-label="Review invoice">
+        <section className="card review-panel" aria-label="Review invoice">
           <div className="panel-header">
             <div>
               <p className="eyebrow">
@@ -196,26 +214,29 @@ export function InvoiceWorkspace({ onAuthProblem }: Props) {
             </div>
             <button
               type="button"
-              className="secondary"
+              className="btn btn-ghost"
               onClick={() => setSelected(null)}
             >
-              Back to queue
+              ← Back to queue
             </button>
           </div>
           <div className="review-grid">
             {reviewFields.map(([field, label]) => (
               <label
-                className={field === 'description' ? 'wide-field' : ''}
+                className={`field ${field === 'description' ? 'wide-field' : ''}`}
                 key={field}
               >
                 {label}
                 {field === 'description' ? (
                   <textarea
+                    className="input"
                     value={values[field] ?? ''}
                     onChange={(event) => updateValue(field, event.target.value)}
                   />
                 ) : (
                   <input
+                    className={`input ${amountFields.has(field) ? 'numeric' : ''}`}
+                    inputMode={amountFields.has(field) ? 'decimal' : undefined}
                     value={values[field] ?? ''}
                     onChange={(event) => updateValue(field, event.target.value)}
                   />
@@ -237,7 +258,7 @@ export function InvoiceWorkspace({ onAuthProblem }: Props) {
           <div className="review-actions">
             <button
               type="button"
-              className="secondary"
+              className="btn btn-danger"
               disabled={busy}
               onClick={() => void reviewInvoice('reject')}
             >
@@ -245,7 +266,9 @@ export function InvoiceWorkspace({ onAuthProblem }: Props) {
             </button>
             <button
               type="button"
+              className="btn btn-primary"
               disabled={busy}
+              aria-busy={busy}
               onClick={() => void reviewInvoice('confirm')}
             >
               {busy ? 'Saving…' : 'Confirm invoice'}
@@ -256,35 +279,52 @@ export function InvoiceWorkspace({ onAuthProblem }: Props) {
         <section className="invoice-list" aria-label="Invoices awaiting review">
           {invoices.length === 0 ? (
             <div className="empty-state">
-              No invoices are waiting for review.
+              <h2>All caught up</h2>
+              <p>No invoices are waiting for review.</p>
             </div>
           ) : (
             invoices.map((invoice) => (
-              <article className="invoice-card" key={invoice.id}>
+              <article
+                className="card card-interactive invoice-card"
+                key={invoice.id}
+              >
                 <button
                   type="button"
                   className="invoice-select"
                   onClick={() => void selectInvoice(invoice.id)}
                 >
-                  <span>
+                  <span className="invoice-summary">
                     <span className="eyebrow">
                       Invoice #{invoice.id} · {invoice.source}
                     </span>
                     <strong>
                       {invoice.supplier_guess ?? 'Supplier not recognised'}
                     </strong>
-                    <span>
-                      {Math.round(invoice.confidence * 100)}% extraction
-                      confidence
+                    <span className="invoice-confidence">
+                      <span
+                        className="meter"
+                        data-level={confidenceLevel(invoice.confidence)}
+                        aria-hidden="true"
+                      >
+                        <span
+                          style={{
+                            width: `${Math.round(invoice.confidence * 100)}%`,
+                          }}
+                        />
+                      </span>
+                      <span className="numeric">
+                        {Math.round(invoice.confidence * 100)}% extraction
+                        confidence
+                      </span>
                     </span>
                   </span>
-                  <span className={`status-badge ${invoice.status}`}>
+                  <span className={`badge ${statusTone(invoice.status)}`}>
                     {invoice.status.replace('_', ' ')}
                   </span>
                 </button>
                 <button
                   type="button"
-                  className="secondary"
+                  className="btn btn-danger btn-sm"
                   disabled={busy}
                   onClick={() => void rejectInvoice(invoice.id)}
                 >
