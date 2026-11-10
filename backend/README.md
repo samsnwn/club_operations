@@ -37,6 +37,13 @@ uv run python -m app.cli create-user --username owner --role owner
 uv run python -m app.cli reset-password --username owner
 ```
 
+With the Docker dev stack running, the repository root has a shortcut for the
+first owner (runs the same CLI inside the backend container):
+
+```bash
+pnpm create-owner <username>
+```
+
 Roles are `owner` (manages every account), `admin` (manages `staff` accounts)
 and `staff` (sign-in and own password only). Administrator-created and reset
 accounts must change their password at first sign-in. Sessions are opaque
