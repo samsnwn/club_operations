@@ -2,6 +2,7 @@
 
 import smtplib
 import ssl
+from typing import ClassVar, Self
 
 import pytest
 from sqlalchemy.orm import Session
@@ -26,7 +27,7 @@ class FakeSMTP:
     """Records the conversation instead of opening a socket."""
 
     starttls_supported = True
-    instances: list["FakeSMTP"] = []
+    instances: ClassVar[list["FakeSMTP"]] = []
 
     def __init__(self, host: str, port: int, **kwargs: object) -> None:
         self.kwargs = kwargs
@@ -34,7 +35,7 @@ class FakeSMTP:
         self.tls_context: object = kwargs.get("context")
         FakeSMTP.instances.append(self)
 
-    def __enter__(self) -> "FakeSMTP":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *_exc: object) -> None:
