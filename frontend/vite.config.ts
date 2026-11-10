@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -8,15 +9,25 @@ export default defineConfig(() => {
   return {
     plugins: [
       react(),
+      tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico'],
+        includeAssets: ['favicon.svg'],
         manifest: {
           name: 'Blue Velvet',
           short_name: 'Velvet',
-          description:
-            'A Progressive Web App built with React, Vite, and TypeScript',
-          theme_color: '#ffffff',
+          description: 'Club operations for Blue Velvet',
+          // Night theme is the primary design target (docs/design-system.md).
+          theme_color: '#080b18',
+          background_color: '#080b18',
+          icons: [
+            {
+              src: 'favicon.svg',
+              sizes: 'any',
+              type: 'image/svg+xml',
+              purpose: 'any',
+            },
+          ],
         },
       }),
     ],

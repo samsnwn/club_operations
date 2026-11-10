@@ -1,0 +1,330 @@
+/*
+ * Blue Velvet design tokens.
+ *
+ * Source of truth for colour, type, radius, shadow and motion. Derived from
+ * the club's street sign: a velvet-navy panel, gold script lettering, a cream
+ * frame, a gold stripe, the copper beech hedge and the blue neon glow behind it.
+ * The full rationale and usage rules live in docs/design-system.md.
+ *
+ * Layers:
+ *   1. Raw palette (@theme)       → Tailwind utilities such as bg-velvet-800.
+ *   2. Semantic roles (:root)     → --bv-* variables that switch per theme.
+ *   3. Semantic utilities (@theme inline) → bg-surface, text-fg, border-line…
+ *
+ * Product code uses layer 2/3 (semantic) names. Raw palette names are for the
+ * sign/brand elements and for defining new semantic roles.
+ */
+
+@theme {
+  /* Velvet — the sign panel. Primary brand hue. */
+  --color-velvet-50: #eef1fb;
+  --color-velvet-100: #d9e0f5;
+  --color-velvet-200: #b3c1eb;
+  --color-velvet-300: #8197db;
+  --color-velvet-400: #5670c8;
+  --color-velvet-500: #3a52b0;
+  --color-velvet-600: #2c3f94;
+  --color-velvet-700: #243377;
+  --color-velvet-800: #1d2960;
+  --color-velvet-900: #161f4a;
+  --color-velvet-950: #0c1130;
+
+  /* Gold — the script lettering and the stripe. Primary action colour. */
+  --color-gold-50: #fdf9e7;
+  --color-gold-100: #faf0c2;
+  --color-gold-200: #f5e08a;
+  --color-gold-300: #efcd55;
+  --color-gold-400: #e9bf3a;
+  --color-gold-500: #cf9f1a;
+  --color-gold-600: #a97c12;
+  --color-gold-700: #835d12;
+  --color-gold-800: #6b4b15;
+  --color-gold-900: #5a3e17;
+
+  /* Copper — the beech hedge under the street light. Attention/warning. */
+  --color-copper-300: #f6b48f;
+  --color-copper-400: #f39461;
+  --color-copper-500: #d8703b;
+  --color-copper-600: #a84a17;
+  --color-copper-700: #7f3612;
+
+  /* Neon — the blue LED glow behind the hedge. Links, focus on velvet, info. */
+  --color-neon-300: #b4bdff;
+  --color-neon-400: #8b98ff;
+  --color-neon-500: #5c6dff;
+  --color-neon-600: #3f4fe0;
+
+  /* Cream — the frame and pillars. Light surfaces and headings at night. */
+  --color-cream-50: #fffdf7;
+  --color-cream-100: #f7f4ec;
+  --color-cream-200: #f6f1e3;
+  --color-cream-300: #e3dccb;
+  --color-cream-400: #c9c0aa;
+  --color-cream-500: #8f8a7c;
+
+  /* Night — blue-tinted neutrals for dark surfaces and text. */
+  --color-night-50: #e9ecf7;
+  --color-night-100: #c9cee6;
+  --color-night-200: #9aa1c4;
+  --color-night-300: #7880a8;
+  --color-night-400: #5d68a8;
+  --color-night-500: #3a4378;
+  --color-night-600: #262d55;
+  --color-night-700: #161c3d;
+  --color-night-800: #0f1430;
+  --color-night-900: #080b18;
+  --color-night-950: #060914;
+
+  /* Status hues (outside the sign, tuned to sit with it). */
+  --color-success-400: #4cc38a;
+  --color-success-700: #1d7349;
+  --color-danger-400: #f4776e;
+  --color-danger-700: #b8322a;
+
+  /* Type */
+  --font-sans:
+    'Inter Variable', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-script: 'Lobster', 'Brush Script MT', cursive;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Radius: soft, not bubbly — the sign is a rectangle with eased corners. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Motion */
+  --ease-velvet: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ---------------------------------------------------------------------------
+ * Semantic roles — Night (default). The club runs at night and staff use the
+ * app in dim rooms, so the dark theme is the primary design target.
+ * ------------------------------------------------------------------------- */
+:root,
+:root[data-theme='night'] {
+  color-scheme: dark;
+
+  --bv-bg: var(--color-night-900);
+  --bv-bg-glow:
+    radial-gradient(
+      60rem 30rem at 15% -10%,
+      color-mix(in oklab, var(--color-neon-500) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      40rem 24rem at 100% 0%,
+      color-mix(in oklab, var(--color-copper-500) 10%, transparent),
+      transparent 70%
+    );
+  --bv-surface: var(--color-night-800);
+  --bv-surface-raised: var(--color-night-700);
+  --bv-surface-sunken: var(--color-night-950);
+  --bv-line: var(--color-night-600);
+  --bv-line-strong: var(--color-night-400);
+
+  --bv-fg: var(--color-night-50);
+  --bv-fg-muted: var(--color-night-200);
+  --bv-fg-subtle: var(--color-night-300);
+  --bv-heading: var(--color-cream-200);
+
+  --bv-primary: var(--color-gold-400);
+  --bv-primary-hover: var(--color-gold-300);
+  --bv-on-primary: var(--color-velvet-950);
+
+  --bv-accent: var(--color-neon-400);
+  --bv-accent-soft: color-mix(in oklab, var(--color-neon-400) 16%, transparent);
+  --bv-focus: var(--color-gold-300);
+
+  --bv-success: var(--color-success-400);
+  --bv-success-soft: color-mix(
+    in oklab,
+    var(--color-success-400) 16%,
+    transparent
+  );
+  --bv-warning: var(--color-copper-400);
+  --bv-warning-soft: color-mix(
+    in oklab,
+    var(--color-copper-400) 16%,
+    transparent
+  );
+  --bv-danger: var(--color-danger-400);
+  --bv-danger-soft: color-mix(
+    in oklab,
+    var(--color-danger-400) 16%,
+    transparent
+  );
+  --bv-neutral-soft: color-mix(
+    in oklab,
+    var(--color-night-200) 14%,
+    transparent
+  );
+
+  --bv-shadow:
+    0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --bv-glow:
+    0 0 0 1px color-mix(in oklab, var(--color-gold-400) 40%, transparent),
+    0 0 24px -4px color-mix(in oklab, var(--color-gold-400) 45%, transparent);
+}
+
+/*
+ * Day — the cream frame becomes the page, the sign becomes the ink.
+ * Applied when the OS prefers light (unless the user pinned Night), or when
+ * the user pins Day. The two blocks must stay identical.
+ */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='night']) {
+    color-scheme: light;
+
+    --bv-bg: var(--color-cream-100);
+    --bv-bg-glow: radial-gradient(
+      60rem 30rem at 15% -10%,
+      color-mix(in oklab, var(--color-velvet-300) 18%, transparent),
+      transparent 70%
+    );
+    --bv-surface: #ffffff;
+    --bv-surface-raised: var(--color-cream-50);
+    --bv-surface-sunken: var(--color-cream-100);
+    --bv-line: var(--color-cream-300);
+    --bv-line-strong: var(--color-cream-500);
+
+    --bv-fg: #141a3a;
+    --bv-fg-muted: #4f5679;
+    --bv-fg-subtle: #6b7294;
+    --bv-heading: var(--color-velvet-900);
+
+    --bv-primary: var(--color-velvet-800);
+    --bv-primary-hover: var(--color-velvet-700);
+    --bv-on-primary: var(--color-gold-300);
+
+    --bv-accent: var(--color-velvet-600);
+    --bv-accent-soft: color-mix(
+      in oklab,
+      var(--color-velvet-500) 12%,
+      transparent
+    );
+    --bv-focus: var(--color-velvet-500);
+
+    --bv-success: var(--color-success-700);
+    --bv-success-soft: color-mix(
+      in oklab,
+      var(--color-success-700) 12%,
+      transparent
+    );
+    --bv-warning: var(--color-copper-600);
+    --bv-warning-soft: color-mix(
+      in oklab,
+      var(--color-copper-500) 14%,
+      transparent
+    );
+    --bv-danger: var(--color-danger-700);
+    --bv-danger-soft: color-mix(
+      in oklab,
+      var(--color-danger-700) 10%,
+      transparent
+    );
+    --bv-neutral-soft: color-mix(
+      in oklab,
+      var(--color-night-500) 10%,
+      transparent
+    );
+
+    --bv-shadow:
+      0 1px 2px rgb(22 31 74 / 0.06), 0 12px 32px -16px rgb(22 31 74 / 0.25);
+    --bv-glow:
+      0 0 0 1px color-mix(in oklab, var(--color-velvet-500) 35%, transparent),
+      0 0 20px -6px
+        color-mix(in oklab, var(--color-velvet-500) 40%, transparent);
+  }
+}
+
+:root[data-theme='day'] {
+  color-scheme: light;
+
+  --bv-bg: var(--color-cream-100);
+  --bv-bg-glow: radial-gradient(
+    60rem 30rem at 15% -10%,
+    color-mix(in oklab, var(--color-velvet-300) 18%, transparent),
+    transparent 70%
+  );
+  --bv-surface: #ffffff;
+  --bv-surface-raised: var(--color-cream-50);
+  --bv-surface-sunken: var(--color-cream-100);
+  --bv-line: var(--color-cream-300);
+  --bv-line-strong: var(--color-cream-500);
+
+  --bv-fg: #141a3a;
+  --bv-fg-muted: #4f5679;
+  --bv-fg-subtle: #6b7294;
+  --bv-heading: var(--color-velvet-900);
+
+  --bv-primary: var(--color-velvet-800);
+  --bv-primary-hover: var(--color-velvet-700);
+  --bv-on-primary: var(--color-gold-300);
+
+  --bv-accent: var(--color-velvet-600);
+  --bv-accent-soft: color-mix(
+    in oklab,
+    var(--color-velvet-500) 12%,
+    transparent
+  );
+  --bv-focus: var(--color-velvet-500);
+
+  --bv-success: var(--color-success-700);
+  --bv-success-soft: color-mix(
+    in oklab,
+    var(--color-success-700) 12%,
+    transparent
+  );
+  --bv-warning: var(--color-copper-600);
+  --bv-warning-soft: color-mix(
+    in oklab,
+    var(--color-copper-500) 14%,
+    transparent
+  );
+  --bv-danger: var(--color-danger-700);
+  --bv-danger-soft: color-mix(
+    in oklab,
+    var(--color-danger-700) 10%,
+    transparent
+  );
+  --bv-neutral-soft: color-mix(
+    in oklab,
+    var(--color-night-500) 10%,
+    transparent
+  );
+
+  --bv-shadow:
+    0 1px 2px rgb(22 31 74 / 0.06), 0 12px 32px -16px rgb(22 31 74 / 0.25);
+  --bv-glow:
+    0 0 0 1px color-mix(in oklab, var(--color-velvet-500) 35%, transparent),
+    0 0 20px -6px color-mix(in oklab, var(--color-velvet-500) 40%, transparent);
+}
+
+/* Semantic Tailwind utilities: bg-surface, text-fg-muted, border-line, … */
+@theme inline {
+  --color-bg: var(--bv-bg);
+  --color-surface: var(--bv-surface);
+  --color-surface-raised: var(--bv-surface-raised);
+  --color-surface-sunken: var(--bv-surface-sunken);
+  --color-line: var(--bv-line);
+  --color-line-strong: var(--bv-line-strong);
+  --color-fg: var(--bv-fg);
+  --color-fg-muted: var(--bv-fg-muted);
+  --color-fg-subtle: var(--bv-fg-subtle);
+  --color-heading: var(--bv-heading);
+  --color-primary: var(--bv-primary);
+  --color-primary-hover: var(--bv-primary-hover);
+  --color-on-primary: var(--bv-on-primary);
+  --color-accent: var(--bv-accent);
+  --color-accent-soft: var(--bv-accent-soft);
+  --color-focus: var(--bv-focus);
+  --color-success: var(--bv-success);
+  --color-success-soft: var(--bv-success-soft);
+  --color-warning: var(--bv-warning);
+  --color-warning-soft: var(--bv-warning-soft);
+  --color-danger: var(--bv-danger);
+  --color-danger-soft: var(--bv-danger-soft);
+  --shadow-card: var(--bv-shadow);
+  --shadow-glow: var(--bv-glow);
+}

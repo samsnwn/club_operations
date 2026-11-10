@@ -7,6 +7,8 @@ import { ChangePassword } from './ChangePassword';
 import { InvoiceWorkspace } from './InvoiceWorkspace';
 import { Login } from './Login';
 import { StaffPanel } from './StaffPanel';
+import { Crest, Sign, Wordmark } from './ui/Brand';
+import { ThemeToggle } from './ui/ThemeToggle';
 
 type View = 'invoices' | 'staff' | 'password';
 type EffectiveView = View | 'home';
@@ -61,18 +63,20 @@ function App() {
 
   if (checking) {
     return (
-      <main className="invoice-app">
-        <p className="status">Checking session…</p>
+      <main className="auth-layout">
+        <p className="status" role="status">
+          Checking session…
+        </p>
       </main>
     );
   }
 
   if (!user) {
     return (
-      <main className="invoice-app">
+      <main className="auth-layout">
         <Login onLogin={setUser} />
         {notice && (
-          <p className="form-error" role="alert">
+          <p className="alert alert-danger" role="alert">
             {notice}
           </p>
         )}
@@ -82,7 +86,7 @@ function App() {
 
   if (user.must_change_password) {
     return (
-      <main className="invoice-app">
+      <main className="auth-layout">
         <ChangePassword
           user={user}
           forced
@@ -128,22 +132,21 @@ function App() {
             };
 
   return (
-    <main className="invoice-app">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">Blue Velvet · Phase 0.5</p>
-          <h1>{heading.title}</h1>
-          <p>{heading.description}</p>
+    <div className="app-shell">
+      <Sign className="app-sign">
+        <div className="app-sign-brand">
+          <Crest />
+          <div>
+            <Wordmark className="app-sign-wordmark" />
+            <span className="app-sign-tagline">Club operations</span>
+          </div>
         </div>
-        <div className="header-actions">
-          <span className="account">
-            {user.username} · {user.role}
-          </span>
+        <nav className="nav-tabs app-nav" aria-label="Sections">
           {canReviewInvoices && (
             <button
               type="button"
-              className="secondary"
-              aria-pressed={effectiveView === 'invoices'}
+              className="nav-tab"
+              aria-current={effectiveView === 'invoices' ? 'page' : undefined}
               onClick={() => setView('invoices')}
             >
               Invoices
@@ -152,8 +155,8 @@ function App() {
           {canManageStaff && (
             <button
               type="button"
-              className="secondary"
-              aria-pressed={effectiveView === 'staff'}
+              className="nav-tab"
+              aria-current={effectiveView === 'staff' ? 'page' : undefined}
               onClick={() => setView('staff')}
             >
               Staff
@@ -161,45 +164,60 @@ function App() {
           )}
           <button
             type="button"
-            className="secondary"
-            aria-pressed={effectiveView === 'password'}
+            className="nav-tab"
+            aria-current={effectiveView === 'password' ? 'page' : undefined}
             onClick={() => setView('password')}
           >
-            Change password
+            Password
           </button>
+        </nav>
+        <div className="app-account">
+          <span className="app-account-name">
+            {user.username}
+            <span>{user.role}</span>
+          </span>
+          <ThemeToggle />
           <button
             type="button"
-            className="secondary"
+            className="nav-tab"
             onClick={() => void signOut()}
           >
             Sign out
           </button>
         </div>
-      </header>
+      </Sign>
 
-      {effectiveView === 'staff' ? (
-        <StaffPanel currentUser={user} onAuthProblem={handleAuthProblem} />
-      ) : effectiveView === 'password' ? (
-        <ChangePassword
-          user={user}
-          onChanged={(next) => {
-            setUser(next);
-            setView('invoices');
-          }}
-          onSignOut={() => void signOut()}
-        />
-      ) : effectiveView === 'invoices' ? (
-        <InvoiceWorkspace onAuthProblem={handleAuthProblem} />
-      ) : (
-        <section className="empty-state" aria-label="Your account">
-          <h2>No sections are assigned to your account yet.</h2>
-          <p>
-            Invoice review is limited to owners and administrators. You can
-            change your password or sign out above.
-          </p>
-        </section>
-      )}
-    </main>
+      <main className="app-main">
+        <header className="page-header">
+          <p className="eyebrow">Phase 0.5</p>
+          <h1>{heading.title}</h1>
+          <p className="text-muted">{heading.description}</p>
+        </header>
+
+        {effectiveView === 'staff' ? (
+          <StaffPanel currentUser={user} onAuthProblem={handleAuthProblem} />
+        ) : effectiveView === 'password' ? (
+          <ChangePassword
+            user={user}
+            onChanged={(next) => {
+              setUser(next);
+              setView('invoices');
+            }}
+            onSignOut={() => void signOut()}
+          />
+        ) : effectiveView === 'invoices' ? (
+          <InvoiceWorkspace onAuthProblem={handleAuthProblem} />
+        ) : (
+          <section className="empty-state" aria-label="Your account">
+            <h2>No sections are assigned to your account yet.</h2>
+            <p>
+              Invoice review is limited to owners and administrators. You can
+              change your password or sign out above.
+            </p>
+          </section>
+        )}
+      </main>
+    </div>
   );
 }
 

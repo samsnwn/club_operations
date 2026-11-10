@@ -1,0 +1,494 @@
+/*
+ * Blue Velvet base styles and UI primitives.
+ *
+ * Every rule here reads semantic tokens (--bv-*) from tokens.css, so the same
+ * markup works in Night and Day themes. Prefer these primitives in new screens
+ * and compose layout with Tailwind utilities; add a new primitive here only
+ * when a pattern repeats on two or more screens. See docs/design-system.md.
+ */
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    font-feature-settings: 'cv11', 'ss01';
+    color: var(--bv-fg);
+    background: var(--bv-bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100dvh;
+    background: var(--bv-bg-glow), var(--bv-bg);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--bv-heading);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: clamp(1.75rem, 1.2rem + 2vw, 2.5rem);
+  }
+
+  h2 {
+    font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+  }
+
+  h3 {
+    font-size: 1.0625rem;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  a {
+    color: var(--bv-accent);
+    text-underline-offset: 3px;
+  }
+
+  code,
+  pre {
+    font-family: var(--font-mono);
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-gold-400) 40%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--bv-focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* ---------------------------------------------------------------- Brand */
+
+  /* The sign: velvet panel, cream frame, gold stripe. Brand moments only —
+     app header, sign-in, splash. Identical in Night and Day. */
+  .bv-sign {
+    position: relative;
+    isolation: isolate;
+    color: var(--color-cream-200);
+    background:
+      radial-gradient(
+        120% 140% at 50% 0%,
+        var(--color-velvet-600),
+        transparent 65%
+      ),
+      linear-gradient(180deg, var(--color-velvet-700), var(--color-velvet-900));
+    border: 3px solid var(--color-cream-200);
+    border-radius: var(--radius-md);
+    box-shadow:
+      0 0 0 1px var(--color-velvet-950),
+      0 18px 48px -18px color-mix(in oklab, var(--color-neon-500) 55%, black);
+    overflow: hidden;
+  }
+
+  .bv-sign::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 6px;
+    background: linear-gradient(
+      90deg,
+      var(--color-gold-500),
+      var(--color-gold-300) 50%,
+      var(--color-gold-500)
+    );
+    z-index: -1;
+  }
+
+  .bv-wordmark {
+    font-family: var(--font-script);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    color: var(--color-gold-300);
+    text-shadow:
+      0 2px 0 var(--color-velvet-950),
+      0 0 18px color-mix(in oklab, var(--color-gold-400) 45%, transparent);
+    white-space: nowrap;
+  }
+
+  .bv-crest {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 2.75rem;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: var(--color-cream-200);
+    box-shadow:
+      inset 0 0 0 3px var(--color-cream-200),
+      inset 0 0 0 5px var(--color-gold-500);
+    color: var(--color-velvet-800);
+    font-weight: 800;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* --------------------------------------------------------------- Type */
+
+  .eyebrow {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--bv-accent);
+  }
+
+  .text-muted {
+    color: var(--bv-fg-muted);
+  }
+
+  .numeric {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* -------------------------------------------------------------- Button */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem; /* 44px touch target */
+    padding: 0.625rem 1.125rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font: inherit;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 160ms var(--ease-velvet),
+      border-color 160ms var(--ease-velvet),
+      color 160ms var(--ease-velvet),
+      box-shadow 160ms var(--ease-velvet);
+  }
+
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .btn[aria-busy='true'] {
+    cursor: progress;
+  }
+
+  /* One primary per view: the action that moves the work forward. */
+  .btn-primary {
+    background: var(--bv-primary);
+    color: var(--bv-on-primary);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--bv-primary-hover);
+    box-shadow: var(--bv-glow);
+  }
+
+  .btn-secondary {
+    background: var(--bv-surface-raised);
+    border-color: var(--bv-line-strong);
+    color: var(--bv-fg);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--bv-accent);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--bv-fg-muted);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--bv-accent-soft);
+    color: var(--bv-fg);
+  }
+
+  .btn-danger {
+    background: transparent;
+    border-color: color-mix(in oklab, var(--bv-danger) 55%, transparent);
+    color: var(--bv-danger);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: var(--bv-danger-soft);
+  }
+
+  .btn-sm {
+    min-height: 2.25rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  /* -------------------------------------------------------- Navigation */
+
+  .nav-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-lg);
+    background: color-mix(in oklab, var(--color-velvet-950) 55%, transparent);
+    border: 1px solid
+      color-mix(in oklab, var(--color-cream-200) 18%, transparent);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-tab {
+    min-height: 2.5rem;
+    padding: 0.5rem 0.875rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-night-100);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 160ms var(--ease-velvet);
+  }
+
+  .nav-tab:hover {
+    background: color-mix(in oklab, var(--color-cream-200) 10%, transparent);
+    color: var(--color-cream-200);
+  }
+
+  .nav-tab[aria-current='page'] {
+    background: var(--color-gold-400);
+    color: var(--color-velvet-950);
+  }
+
+  .nav-tab:focus-visible {
+    outline-color: var(--color-gold-300);
+  }
+
+  /* --------------------------------------------------------- Surfaces */
+
+  .card {
+    background: var(--bv-surface);
+    border: 1px solid var(--bv-line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--bv-shadow);
+    padding: 1.5rem;
+  }
+
+  .card-interactive {
+    transition:
+      border-color 160ms var(--ease-velvet),
+      transform 160ms var(--ease-velvet);
+  }
+
+  .card-interactive:hover {
+    border-color: var(--bv-line-strong);
+  }
+
+  .empty-state {
+    padding: 2.5rem 1.5rem;
+    border: 1px dashed var(--bv-line-strong);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    color: var(--bv-fg-muted);
+  }
+
+  .empty-state h2 {
+    margin-bottom: 0.5rem;
+  }
+
+  /* ------------------------------------------------------------ Forms */
+
+  .field {
+    display: grid;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--bv-fg);
+  }
+
+  .field-hint {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--bv-fg-muted);
+  }
+
+  .input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 2.75rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--bv-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bv-surface-sunken);
+    color: var(--bv-fg);
+    font: inherit;
+    font-size: 1rem; /* 16px stops iOS zoom on focus */
+    font-weight: 400;
+    transition:
+      border-color 160ms var(--ease-velvet),
+      box-shadow 160ms var(--ease-velvet);
+  }
+
+  .input::placeholder {
+    color: var(--bv-fg-subtle);
+  }
+
+  .input:hover:not(:disabled) {
+    border-color: var(--bv-fg-subtle);
+  }
+
+  .input:focus-visible {
+    outline: none;
+    border-color: var(--bv-focus);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--bv-focus) 30%, transparent);
+  }
+
+  .input[aria-invalid='true'] {
+    border-color: var(--bv-danger);
+  }
+
+  textarea.input {
+    min-height: 6.5rem;
+    resize: vertical;
+  }
+
+  select.input {
+    appearance: none;
+    padding-right: 2.25rem;
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+      calc(100% - 1.1rem) 55%,
+      calc(100% - 0.8rem) 55%;
+    background-size:
+      0.3rem 0.3rem,
+      0.3rem 0.3rem;
+    background-repeat: no-repeat;
+  }
+
+  /* ----------------------------------------------------------- Badges */
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    background: var(--bv-neutral-soft);
+    color: var(--bv-fg-muted);
+  }
+
+  .badge::before {
+    content: '';
+    width: 0.4rem;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .badge-info {
+    background: var(--bv-accent-soft);
+    color: var(--bv-accent);
+  }
+
+  .badge-success {
+    background: var(--bv-success-soft);
+    color: var(--bv-success);
+  }
+
+  .badge-warning {
+    background: var(--bv-warning-soft);
+    color: var(--bv-warning);
+  }
+
+  .badge-danger {
+    background: var(--bv-danger-soft);
+    color: var(--bv-danger);
+  }
+
+  /* ----------------------------------------------------------- Alerts */
+
+  .alert {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    border-left: 3px solid currentColor;
+    background: var(--bv-neutral-soft);
+    color: var(--bv-fg);
+    font-size: 0.9375rem;
+  }
+
+  .alert-danger {
+    background: var(--bv-danger-soft);
+    color: var(--bv-danger);
+  }
+
+  .alert-success {
+    background: var(--bv-success-soft);
+    color: var(--bv-success);
+  }
+
+  .alert-info {
+    background: var(--bv-accent-soft);
+    color: var(--bv-fg);
+    border-left-color: var(--bv-accent);
+  }
+
+  /* --------------------------------------------------- Confidence meter */
+
+  .meter {
+    display: block;
+    width: 100%;
+    height: 0.375rem;
+    border-radius: 999px;
+    background: var(--bv-line);
+    overflow: hidden;
+  }
+
+  .meter > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--bv-accent);
+  }
+
+  .meter[data-level='low'] > span {
+    background: var(--bv-warning);
+  }
+
+  .meter[data-level='high'] > span {
+    background: var(--bv-success);
+  }
+}

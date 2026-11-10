@@ -151,27 +151,31 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
   return (
     <section className="staff-panel" aria-label="Staff accounts">
       <div className="staff-intro">
-        <h2>Internal accounts</h2>
-        <p>
+        <p className="text-muted">
           {currentUser.role === 'owner'
             ? 'Owners manage every account. New accounts get a temporary password and must change it at first sign-in.'
             : 'Admins manage staff accounts. New accounts get a temporary password and must change it at first sign-in.'}
         </p>
       </div>
 
-      <form className="staff-create" onSubmit={(event) => void create(event)}>
-        <label>
+      <form
+        className="card staff-create"
+        onSubmit={(event) => void create(event)}
+      >
+        <label className="field">
           Username
           <input
+            className="input"
             required
             maxLength={32}
             value={username}
             onChange={(event) => setUsername(event.target.value)}
           />
         </label>
-        <label>
+        <label className="field">
           Temporary password
           <input
+            className="input"
             type="password"
             autoComplete="new-password"
             minLength={12}
@@ -180,9 +184,10 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        <label>
+        <label className="field">
           Role
           <select
+            className="input"
             value={role}
             onChange={(event) => setRole(event.target.value as Role)}
           >
@@ -193,13 +198,13 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
             ))}
           </select>
         </label>
-        <button type="submit" disabled={busy}>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
           Create account
         </button>
       </form>
 
       {error ? (
-        <p className="form-error" role="alert">
+        <p className="alert alert-danger form-error" role="alert">
           {error}
         </p>
       ) : (
@@ -210,17 +215,19 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
 
       <ul className="staff-list">
         {users.map((user) => (
-          <li key={user.id} className="staff-row">
+          <li key={user.id} className="card staff-row">
             <div className="staff-identity">
               <strong>{user.username}</strong>
               <span className="staff-role">{user.role}</span>
               <span
-                className={`status-badge ${user.is_active ? '' : 'inactive'}`}
+                className={`badge ${user.is_active ? 'badge-success' : ''}`}
               >
                 {user.is_active ? 'active' : 'inactive'}
               </span>
               {user.must_change_password && (
-                <span className="staff-note">must change password</span>
+                <span className="badge badge-warning">
+                  must change password
+                </span>
               )}
               {user.created_by && (
                 <span className="staff-note">created by {user.created_by}</span>
@@ -230,6 +237,7 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
               <div className="staff-actions">
                 {currentUser.role === 'owner' && (
                   <select
+                    className="input input-compact"
                     aria-label={`Role for ${user.username}`}
                     value={user.role}
                     disabled={busy}
@@ -248,7 +256,7 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
                 )}
                 <button
                   type="button"
-                  className="secondary"
+                  className="btn btn-secondary btn-sm"
                   disabled={busy}
                   onClick={() =>
                     void patch(user.id, { is_active: !user.is_active })
@@ -258,7 +266,7 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
                 </button>
                 <button
                   type="button"
-                  className="secondary"
+                  className="btn btn-secondary btn-sm"
                   disabled={busy}
                   onClick={() =>
                     setResetFor(resetFor === user.id ? null : user.id)
@@ -274,6 +282,7 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
                 onSubmit={(event) => void reset(event, user.id, user.username)}
               >
                 <input
+                  className="input"
                   type="password"
                   autoComplete="new-password"
                   minLength={12}
@@ -282,7 +291,11 @@ export function StaffPanel({ currentUser, onAuthProblem }: Props) {
                   value={resetPassword}
                   onChange={(event) => setResetPassword(event.target.value)}
                 />
-                <button type="submit" disabled={busy}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={busy}
+                >
                   Set password
                 </button>
               </form>
