@@ -246,7 +246,44 @@ def test_upstream_error_status_is_passed_through(
     _use_service(monkeypatch, handler)
     response = client.get("/api/v1/invoices/123")
     assert response.status_code == 404
-    assert "Invoice not found" in response.json()["detail"]
+    assert response.json()["detail"] == "Invoice not found"
+
+
+@pytest.mark.parametrize("upstream_status", [401, 403])
+def test_service_credential_failure_is_not_a_user_auth_error(
+    monkeypatch: pytest.MonkeyPatch, upstream_status: int
+) -> None:
+    """A token mismatch between the services must not look like an expired
+    session to the browser."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            upstream_status, json={"detail": "Invalid internal service token"}
+        )
+
+    _use_service(monkeypatch, handler)
+    response = client.get("/api/v1/invoices/queue")
+    assert response.status_code == 502
+    assert "token" not in response.json()["detail"].lower()
+
+
+def test_import_gets_a_longer_timeout_than_other_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OCR makes an import far slower than the default per-call budget."""
+    timeouts: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        timeouts[request.url.path] = request.extensions["timeout"]["read"]
+        return httpx.Response(200, json={"new_invoices": 0, "count": 0, "items": []})
+
+    _use_service(monkeypatch, handler)
+    client.post("/api/v1/invoices/import")
+    client.get("/api/v1/invoices/queue?status=pending_review")
+    assert (
+        timeouts["/api/v1/internal/invoices/import"] == invoices.IMPORT_TIMEOUT_SECONDS
+    )
+    assert timeouts["/api/v1/queue"] < invoices.IMPORT_TIMEOUT_SECONDS
 
 
 def test_original_streamed_inline(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     # Same-origin requests are always allowed; the dev frontend is the default.
     allowed_origins: str = "http://localhost:5173"
 
+    # Failed sign-ins tolerated within the window before further attempts are
+    # refused (429), counted per account name and per client address.
+    login_failure_window_minutes: int = 15
+    login_max_failures_per_account: int = 10
+    login_max_failures_per_address: int = 30
+
 
 @lru_cache
 def get_settings() -> Settings:

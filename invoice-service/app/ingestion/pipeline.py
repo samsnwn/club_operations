@@ -8,6 +8,7 @@ import logging
 from datetime import UTC, datetime
 from functools import lru_cache
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -52,8 +53,10 @@ def _document_text(content: bytes, max_pdf_pages: int) -> str:
 def poll_sources(db: Session, sources: list) -> int:
     """Run every configured source once: catch-up poll → dedupe → store →
     extract → queue rows. Returns the number of NEW invoices captured.
-    Source failures are isolated per source: one broken channel never blocks
-    the others."""
+    Failures are isolated per source and per file: one broken channel or
+    one bad capture never blocks the others. A source whose run had a failed
+    file keeps its previous watermark, so that file is offered again on the
+    next run (already-ingested files dedupe by content hash)."""
     new_count = 0
     for source in sources:
         cursor_row = db.get(SyncWatermark, source.name)
@@ -63,10 +66,29 @@ def poll_sources(db: Session, sources: list) -> int:
         except Exception:
             log.exception("Source %s poll failed", source.name)
             continue
+        failed = 0
         for captured_file in captured:
-            if ingest_file(db, captured_file):
-                new_count += 1
-        watermark = cursor_row or SyncWatermark(source=source.name)
+            try:
+                if ingest_file(db, captured_file):
+                    new_count += 1
+            except Exception:
+                db.rollback()
+                failed += 1
+                log.exception(
+                    "Ingest failed for %s from %s",
+                    captured_file.filename,
+                    source.name,
+                )
+        if failed:
+            log.warning(
+                "Source %s: %d file(s) failed; watermark not advanced",
+                source.name,
+                failed,
+            )
+            continue
+        watermark = db.get(SyncWatermark, source.name) or SyncWatermark(
+            source=source.name
+        )
         watermark.cursor = next_cursor
         watermark.last_success_at = datetime.now(UTC).replace(tzinfo=None)
         db.add(watermark)
@@ -106,6 +128,15 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
         )
         return False
 
+    # De-duplicate first: the drop folder keeps its files, so every later
+    # import sees them again and must not re-parse them.
+    content_hash = hashlib.sha256(captured.content).hexdigest()
+    if db.query(Invoice.id).filter(Invoice.content_hash == content_hash).first():
+        log.info(
+            "Duplicate capture skipped: %s (%s)", captured.filename, content_hash[:12]
+        )
+        return False
+
     if captured.content.startswith(b"%PDF"):
         page_count = text_extractor.pdf_page_count(captured.content)
         if page_count is not None and page_count > settings.max_pdf_pages:
@@ -117,13 +148,6 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
                 settings.max_pdf_pages,
             )
             return False
-
-    content_hash = hashlib.sha256(captured.content).hexdigest()
-    if db.query(Invoice.id).filter(Invoice.content_hash == content_hash).first():
-        log.info(
-            "Duplicate capture skipped: %s (%s)", captured.filename, content_hash[:12]
-        )
-        return False
 
     storage_path = attachment_path(settings.attachments_dir, content_hash)
     storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,7 +177,15 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
         if fieldname in _GUARDED_FIELDS and isinstance(value, (int, float, str)):
             setattr(invoice, f"{fieldname}_guess", value)
     db.add(invoice)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Lost a race with a concurrent ingest of the same content.
+        db.rollback()
+        log.info(
+            "Duplicate capture skipped: %s (%s)", captured.filename, content_hash[:12]
+        )
+        return False
     log.info(
         "Ingested %s from %s (confidence %.2f, status %s)",
         captured.filename,

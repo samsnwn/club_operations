@@ -92,6 +92,15 @@ outside development. The dev compose publishes the service on
 `127.0.0.1:8081` only; production must keep `:8081` internal to the compose
 network and never expose it to the LAN or internet.
 
+## Review rules
+
+Confirm and reject are only accepted while an invoice is `pending_review` or
+`needs_attention`; any later attempt returns 409, so a rejected invoice cannot
+be confirmed and two reviewers cannot both decide the same invoice. Confirm
+requires `supplier`, `invoice_date` and `gross` (422 otherwise) — a confirmed
+row is export-eligible and must never be blank. Only one import runs at a
+time; a second request while one is in progress returns 409.
+
 ## Reviewer attribution
 
 `POST /api/v1/queue/{id}/confirm` and `/reject` record a `reviewed_by` value.
