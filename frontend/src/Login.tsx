@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from 'react';
 
-import { ApiError } from './api';
+import { ApiError, isServerUnreachable } from './api';
 import { login, type CurrentUser } from './auth';
 import { Crest, Sign, Wordmark } from './ui/Brand';
 
@@ -21,9 +21,15 @@ export function Login({ onLogin }: Props) {
     try {
       onLogin(await login(username.trim(), password));
     } catch (caught) {
-      setError(
-        caught instanceof ApiError ? caught.message : 'Unable to sign in',
-      );
+      if (isServerUnreachable(caught)) {
+        setError(
+          "Can't reach the server. Check your connection and try again.",
+        );
+      } else {
+        setError(
+          caught instanceof ApiError ? caught.message : 'Unable to sign in',
+        );
+      }
     } finally {
       setBusy(false);
     }
