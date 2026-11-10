@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 
 ## [2026-11-10]
 
+### Added
+- Software factory (from the zazencodes software-factory-claude-code-v2
+  reference): the `/factory` orchestrator skill, the intake, spec-writer,
+  builder, reviewer and approver agents in `.claude/`, and `factory/`
+  (config, job/gate/route scripts, dashboard). `factory/checks.sh` mirrors CI.
+  The agents are tailored to this project's hard rules; the approver escalates
+  anything touching invoices, auth, Google integrations, fixtures, Compose or
+  the plan. `factory/jobs/` and `.worktrees/` are gitignored.
+
 ### Fixed
 - Invoice import no longer fails on slow OCR runs: the backend facade gives
   the import call its own 15-minute budget (other calls keep 30 s), the invoice
