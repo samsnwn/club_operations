@@ -10,6 +10,15 @@ export class ApiError extends Error {
   }
 }
 
+// True when the request never got a usable answer: fetch rejected (network
+// failure) or a gateway reported the backend as unavailable.
+export function isServerUnreachable(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return [502, 503, 504].includes(error.status);
+  }
+  return error instanceof TypeError;
+}
+
 function detailFromBody(body: unknown): string | null {
   if (typeof body !== 'object' || body === null || !('detail' in body)) {
     return null;
