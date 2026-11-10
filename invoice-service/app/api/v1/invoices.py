@@ -1,5 +1,6 @@
 """Internal invoice-service endpoints used by the main backend facade."""
 
+import threading
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,13 +15,24 @@ from app.review.routes import internal_token
 
 router = APIRouter(prefix="/internal/invoices", tags=["internal"])
 
+# One import at a time: a run can take minutes (OCR), and a second concurrent
+# run would OCR every file twice. Process-local by design (the service runs as
+# a single process); `ingest_file` treats a unique-constraint collision as a
+# duplicate, which is the backstop if that ever changes.
+_import_lock = threading.Lock()
+
 
 @router.post("/import")
 def import_drop_folder(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[None, Depends(internal_token)],
 ) -> dict:
-    return {"new_invoices": poll_drop_folder(db)}
+    if not _import_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="An import is already running")
+    try:
+        return {"new_invoices": poll_drop_folder(db)}
+    finally:
+        _import_lock.release()
 
 
 @router.get("/{invoice_id}/original")
