@@ -16,6 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   the plan. `factory/jobs/` and `.worktrees/` are gitignored.
 
 ### Fixed
+- The sign-in screen shows "Can't reach the server. Check your connection and
+  try again." when the backend cannot be reached (the request fails at the
+  network level, or the server answers 502, 503 or 504) instead of a raw
+  "Request failed (5xx)" or "Unable to sign in". Wrong-credential and
+  throttling messages are unchanged.
 - Backend `GET /api/v1/health` returns 503 with
   `{"status": "degraded", "database": "error"}` when the database round-trip
   fails, instead of a generic 500. The error is logged server-side and never
