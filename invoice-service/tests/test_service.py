@@ -9,11 +9,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.api.v1 import invoices as invoice_routes
 from app.core.config import DEFAULT_INTERNAL_TOKEN, get_settings
 from app.db.base import Base, SessionLocal, engine
-from app.ingestion.fixtures import FixtureSource
-from app.api.v1 import invoices as invoice_routes
 from app.ingestion import pipeline
+from app.ingestion.fixtures import FixtureSource
 from app.ingestion.pipeline import ingest_file, poll_sources
 from app.main import create_app
 from app.models.invoice import Invoice
