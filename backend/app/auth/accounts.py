@@ -5,6 +5,8 @@ from typing import Literal
 
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,32}$")
 MIN_PASSWORD_LENGTH = 12
+# Far beyond any real passphrase; bounds the work an oversized input can cause.
+MAX_PASSWORD_LENGTH = 1024
 ROLES = ("owner", "admin", "staff")
 Role = Literal["owner", "admin", "staff"]
 
@@ -21,4 +23,6 @@ def validate_username(value: str) -> str:
 def validate_password(value: str) -> str:
     if len(value) < MIN_PASSWORD_LENGTH:
         raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+    if len(value) > MAX_PASSWORD_LENGTH:
+        raise ValueError(f"Password must be at most {MAX_PASSWORD_LENGTH} characters")
     return value

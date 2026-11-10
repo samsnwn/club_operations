@@ -32,6 +32,8 @@ frontend/   React + TypeScript + Vite PWA (auth, staff panel, invoice review; no
 backend/    FastAPI backend, /api/v1 (health, auth/users, invoice facade; no domain modules yet)
 invoice-service/  Phase 0.5 invoice service (FastAPI + SQLite; drop-folder/fixture ingestion + review queue wired; Drive/Gmail/scheduler/Sheets export stubbed)
 infra/      Docker Compose dev stack (backend :8080, frontend :5173, invoice-service :8081), HTTPS setup to come
+factory/    software factory: checks.sh, config, job/gate/route scripts, dashboard (jobs/ is gitignored runtime state)
+.claude/    factory orchestrator skill and agents
 docs/       architecture, design system, milestones, next steps
 README.md   full project plan (single source of product truth)
 AGENTS.md   this file — conventions and guardrails for agents
@@ -76,6 +78,30 @@ pnpm run dev
 pnpm run build
 ```
 
+Fresh checkout (host, no Docker; what a factory worktree needs; run from the
+repository root). No `.env` file is required: every setting has a development
+default, and the `.env.example` files are only for overrides.
+
+```bash
+pnpm install --frozen-lockfile                       # root: Prettier
+(cd frontend && pnpm install --frozen-lockfile)
+(cd backend && uv sync)
+(cd invoice-service && uv sync)
+```
+
+Dev server on a given port (host; pages render without the backend, but
+anything behind `/api` needs it on :8080 or at `BACKEND_URL`):
+
+```bash
+cd frontend && pnpm run dev --port <port> --strictPort
+```
+
+Validation (everything CI runs; the same script the factory gate runs):
+
+```bash
+bash factory/checks.sh
+```
+
 Formatting (one entry point, language-native toolchains; run from the
 repository root — CI checks formatting):
 
@@ -98,10 +124,28 @@ pnpm format:check    # verify formatting (same check CI runs; Prettier + ruff)
 - **Git:** small, focused commits; imperative subject lines ("Add invoice review queue"); planning-doc changes in commits separate from code changes.
 - **API:** everything backend-facing goes under `/api/v1/`; schemas defined once in Pydantic, never duplicated in the frontend by hand.
 
+## Software factory
+
+`/factory run` builds every open GitHub issue labeled `factory` through
+intake → spec → build → gate → review → approve, one PR per issue. State is in
+`factory/jobs/` (gitignored); `factory/bin/job` is its only writer. Checks:
+`factory/checks.sh`. Dashboard: `cd factory && python3 -m http.server`, then
+open http://localhost:8000/dashboard.html.
+
+Each job works in its own git worktree, a full checkout of the repo at
+`.worktrees/<job-id>` (gitignored). A tool run from the repo root that doesn't
+read `.gitignore` sees those copies too; exclude `.worktrees/` in its config.
+
+The developer running `/factory run` (or `/factory run <n>`) is the explicit
+go-ahead hard rule 2 asks for, scoped to the factory: its agents may commit to
+and push only their own `factory/<job-id>` branch and open a PR for it, and
+merges happen only through `factory/bin/job merge` after the approver
+approves. Outside a factory job, hard rule 2 applies unchanged.
+
 ## Hard rules — do not violate
 
 1. **Backend is source of truth.** Any extraction, sync or automation output is a *suggestion* until confirmed by a human. Never write unreviewed data into the owner's accounting sheet.
-2. **Never commit or push without the developer's permission.** Edits stay in the working tree; creating commits requires an explicit go-ahead in the current session, and pushing (or any remote operation) needs a second, explicit go-ahead. When in doubt, present changes and wait.
+2. **Never commit or push without the developer's permission.** Edits stay in the working tree; creating commits requires an explicit go-ahead in the current session, and pushing (or any remote operation) needs a second, explicit go-ahead. Exception: factory jobs, scoped as described in "Software factory" above. When in doubt, present changes and wait.
 3. **The accounting sheet is an output artifact.** Never edit it destructively, never overwrite existing rows, never touch columns that contain formulas.
 4. **No real club data in the repo.** Owner/supplier names, invoice contents, mailbox addresses and spreadsheets are confidential (GDPR-relevant). Use fixtures with clearly fake data. Do not commit credentials — Gmail/Drive OAuth secrets and app passwords live outside the repo (e.g. `.env`, gitignored).
 5. **AI stays read-only.** The local AI assistant never approves events, places orders, modifies stock or writes financial records.
