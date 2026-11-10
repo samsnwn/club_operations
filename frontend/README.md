@@ -39,6 +39,20 @@ Repository-wide formatting is run from the repository root with
 - `src/StaffPanel.tsx` — account management (owner/admin).
 - `src/InvoiceWorkspace.tsx` — import, review queue, corrections,
   confirm/reject, extracted text and original preview.
+- `src/styles/tokens.css` — design tokens (palette, semantic roles, Night/Day
+  themes) exposed as Tailwind v4 utilities.
+- `src/styles/components.css` — base styles and UI primitives (`.btn`,
+  `.card`, `.field`/`.input`, `.badge`, `.alert`, `.nav-tab`, `.meter`).
+- `src/ui/` — brand components (`Sign`, `Wordmark`, `Crest`) and `ThemeToggle`.
+- `src/App.css` — screen layouts only.
+
+## Styling
+
+Follow [`../docs/design-system.md`](../docs/design-system.md). Compose screens
+from the primitives plus Tailwind layout utilities, use semantic colours
+(`bg-surface`, `text-fg-muted`, `border-line`) rather than hex values, keep one
+`btn-primary` per view, and check both Night and Day themes at phone and
+desktop widths. Fonts are bundled via Fontsource; do not add a font CDN.
 
 ## Access behaviour
 

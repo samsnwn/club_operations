@@ -47,18 +47,22 @@ export function ChangePassword({
   };
 
   return (
-    <section className="auth-card" aria-label="Change password">
-      <p className="eyebrow">Blue Velvet · Phase 0.5</p>
-      <h1>{forced ? 'Choose a new password' : 'Change password'}</h1>
+    <section
+      className={`card auth-card ${forced ? '' : 'auth-card-inline'}`}
+      aria-label="Change password"
+    >
+      {forced && <p className="eyebrow">Blue Velvet · First sign-in</p>}
+      {forced && <h1>Choose a new password</h1>}
       <p className="auth-hint">
         {forced
           ? 'Your account was created with a temporary password. Choose your own before continuing.'
           : `Signed in as ${user.username}. Other devices will be signed out.`}
       </p>
       <form className="auth-form" onSubmit={(event) => void submit(event)}>
-        <label>
+        <label className="field">
           Current password
           <input
+            className="input"
             type="password"
             autoComplete="current-password"
             required
@@ -66,9 +70,10 @@ export function ChangePassword({
             onChange={(event) => setCurrentPassword(event.target.value)}
           />
         </label>
-        <label>
+        <label className="field">
           New password
           <input
+            className="input"
             type="password"
             autoComplete="new-password"
             minLength={12}
@@ -77,9 +82,10 @@ export function ChangePassword({
             onChange={(event) => setNewPassword(event.target.value)}
           />
         </label>
-        <label>
+        <label className="field">
           Repeat new password
           <input
+            className="input"
             type="password"
             autoComplete="new-password"
             minLength={12}
@@ -88,18 +94,23 @@ export function ChangePassword({
             onChange={(event) => setRepeatPassword(event.target.value)}
           />
         </label>
-        <p className="auth-hint">At least 12 characters.</p>
-        <button type="submit" disabled={busy || done}>
+        <p className="field-hint">At least 12 characters.</p>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={busy || done}
+          aria-busy={busy}
+        >
           {busy ? 'Saving…' : done ? 'Password changed' : 'Change password'}
         </button>
         {forced && (
-          <button type="button" className="secondary" onClick={onSignOut}>
+          <button type="button" className="btn btn-ghost" onClick={onSignOut}>
             Sign out
           </button>
         )}
       </form>
       {error && (
-        <p className="form-error" role="alert">
+        <p className="alert alert-danger form-error" role="alert">
           {error}
         </p>
       )}
