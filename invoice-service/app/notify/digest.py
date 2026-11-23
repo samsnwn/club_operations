@@ -30,7 +30,7 @@ INSTRUCTIONS = (
 
 def build_digest(db: Session) -> str:
     """Human-readable summary of every open invoice, in queue order."""
-    items = queue(db)
+    items = queue(db, limit=None)
     attention = [item for item in items if item.status == "needs_attention"]
     ready = [item for item in items if item.status == "pending_review"]
     lines = [f"Blue Velvet Invoice Service — {len(items)} item(s) need review", ""]

@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.base import Base, SessionLocal, engine
+from app.models.invoice import Invoice
 from app.notify import digest
+from app.review.routes import QUEUE_LIMIT, queue
 
 
 @pytest.fixture(name="db")
@@ -113,3 +115,24 @@ def test_digest_uses_implicit_tls_on_port_465(
     sent = smtp.instances[0]
     assert sent.events == ["send"]
     assert _verifies_certificates(sent.tls_context)
+
+
+def test_digest_counts_every_open_invoice_beyond_the_queue_limit(
+    db: Session,
+) -> None:
+    total = QUEUE_LIMIT + 5
+    db.add_all(
+        Invoice(
+            source="drop_folder",
+            content_hash=f"{n:064x}",
+            supplier_suggested=f"Fake Supplier {n}",
+            status="pending_review",
+        )
+        for n in range(total)
+    )
+    db.commit()
+    body = digest.build_digest(db)
+    # The review API keeps its cap; the digest counts and lists every invoice.
+    assert len(queue(db)) == QUEUE_LIMIT
+    assert f"— {total} item(s) need review" in body
+    assert sum(line.startswith("  - #") for line in body.splitlines()) == total

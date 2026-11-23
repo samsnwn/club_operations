@@ -21,6 +21,8 @@ depends_on: str | Sequence[str] | None = None
 
 TEXT_FIELDS = ("supplier", "invoice_number", "invoice_date", "due_date")
 AMOUNT_FIELDS = ("net", "vat", "gross")
+# Frozen copy of app.models.invoice.REQUIRED_FIELDS at this revision.
+REQUIRED_FIELDS = ("supplier", "invoice_date", "gross")
 UNSUGGESTED_FIELDS = (
     ("category", sa.String(length=64)),
     ("payment_method", sa.String(length=64)),
@@ -46,6 +48,17 @@ def upgrade() -> None:
                 existing_type=sa.Float(),
             )
             batch.alter_column(f"{name}_final", type_=MONEY, existing_type=sa.Float())
+    # Open rows were triaged by the dropped confidence score; re-triage them by
+    # the new rule (a required suggestion is missing → needs_attention).
+    # Reviewed rows (confirmed/rejected) keep their status.
+    missing_required = " OR ".join(
+        f"{name}_suggested IS NULL" for name in REQUIRED_FIELDS
+    )
+    op.execute(
+        "UPDATE invoices SET status = CASE WHEN "
+        f"{missing_required} THEN 'needs_attention' ELSE 'pending_review' END "
+        "WHERE status IN ('needs_attention', 'pending_review')"
+    )
 
 
 def downgrade() -> None:
