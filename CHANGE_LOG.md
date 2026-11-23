@@ -36,11 +36,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 - One queue order everywhere: `GET /api/v1/queue?status=open` (the default)
   lists needs-attention invoices first, then oldest first. The backend facade
   passes `status` through instead of merging two calls, and the digest uses
-  the same query.
+  the same order, uncapped, so it counts every open invoice.
 - Amounts (`net`, `vat`, `gross`) are stored as exact decimals
   (`Numeric(12,2)`); `*_guess` columns are renamed `*_suggested`. Queue
   suggestions return amounts as decimal strings (`"1190.00"`). Migration
-  `4c2e7a9b1d3f` keeps existing rows.
+  `4c2e7a9b1d3f` keeps existing rows and re-triages open ones by
+  required-field coverage; confirmed and rejected rows are unchanged.
 - The review API's two token checks share one implementation; confirm
   validates amounts through the request schema.
 
