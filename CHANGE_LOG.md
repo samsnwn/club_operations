@@ -55,6 +55,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 - The frontend's handling of statuses that do not exist (`exported`,
   `failed`).
 
+### Fixed
+- A file over the PDF page limit is no longer downloaded from the invoice
+  folder on every import: its MD5 is recorded in the new `rejected_captures`
+  table (migration `2f6a8c4e1b7d`) and skipped from then on. Download errors
+  and other transient failures are still retried on the next import.
+- Extraction no longer suggests amounts longer than 10 integer digits, which
+  the confirm endpoint would reject; such OCR noise now yields no suggestion.
+- `STATUS.md` described migration `4c2e7a9b1d3f` as additive; it drops the
+  `sync_watermarks` table and the `confidence`, `currency` and three unused
+  `*_guess` columns, which a downgrade does not restore.
+
 ## [2026-11-10]
 
 ### Added
