@@ -16,6 +16,8 @@ pnpm format:check
 # Compose file parses
 docker compose -f infra/docker-compose.yml config --quiet
 
+echo "Running checks in $(pwd) for the backend"
+
 # Backend
 (
   cd backend
@@ -26,6 +28,7 @@ docker compose -f infra/docker-compose.yml config --quiet
   uv run pytest --strict-markers --strict-config
 )
 
+echo "Running checks in $(pwd) for the invoice service"
 # Invoice service
 (
   cd invoice-service
@@ -35,6 +38,7 @@ docker compose -f infra/docker-compose.yml config --quiet
   uv run pytest --strict-markers --strict-config
 )
 
+echo "Running checks in $(pwd) for the frontend"
 # Frontend
 (
   cd frontend
