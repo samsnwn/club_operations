@@ -196,17 +196,9 @@
   color: var(--bv-heading);
 }
 
-.invoice-confidence {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.invoice-missing {
   font-size: 0.875rem;
   color: var(--bv-fg-muted);
-}
-
-.invoice-confidence .meter {
-  width: 96px;
-  flex: none;
 }
 
 .review-panel {

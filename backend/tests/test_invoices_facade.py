@@ -98,42 +98,19 @@ def test_admin_can_reach_invoice_routes(
         app.dependency_overrides[current_user] = lambda: TEST_USER
 
 
-def test_queue_merges_statuses_confident_first(
+def test_queue_defaults_to_open_invoices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The merged 'all' view must mirror the service's order: confidence
-    descending, oldest first within a confidence tie — not per-status order
-    simply concatenated."""
+    """One service call; the service owns the open filter and its order."""
     requested: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requested.append(str(request.url.params["status"]))
-        items = {
-            "pending_review": [
-                {"confidence": 0.9, "created_at": "2026-11-05T10:00"},
-                {"confidence": 0.7, "created_at": "2026-11-05T09:00"},
-                # Same confidence, deliberately newest-first in input.
-                {"confidence": 0.8, "created_at": "2026-11-05T15:00"},
-                {"confidence": 0.8, "created_at": "2026-11-05T08:00"},
-            ],
-            "needs_attention": [
-                {"confidence": 0.99, "created_at": "2026-11-05T07:00"},
-            ],
-        }.get(str(request.url.params["status"]), [])
-        return httpx.Response(200, json={"count": len(items), "items": items})
+        return httpx.Response(200, json={"count": 0, "items": []})
 
     _use_service(monkeypatch, handler)
-    response = client.get("/api/v1/invoices/queue")
-
-    assert response.status_code == 200
-    body = response.json()
-    assert [item["confidence"] for item in body["items"]] == [0.99, 0.9, 0.8, 0.8, 0.7]
-    assert [item["created_at"] for item in body["items"][2:4]] == [
-        "2026-11-05T08:00",
-        "2026-11-05T15:00",
-    ]
-    assert requested == ["pending_review", "needs_attention"]
-    assert body["count"] == 5
+    assert client.get("/api/v1/invoices/queue").status_code == 200
+    assert requested == ["open"]
 
 
 def test_queue_single_status_passes_status_through(

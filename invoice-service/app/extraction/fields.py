@@ -1,102 +1,64 @@
-"""Field extraction: always a *suggestion* with an explicit confidence
-score (README §Phase 0.5). Text-layer based for now (PDF text and Tesseract
-output); supplier-specific templates arrive per-supplier as real data lands.
+"""Field extraction: turns a document's text layer into suggestions
+(README §Phase 0.5). Generic regexes for now; supplier-specific templates
+arrive per supplier as real data lands.
 
-Document contents are untrusted input (hard rule 7): defensive regexes only,
-nothing here acts beyond recording suggestions in the review queue.
+Document contents are untrusted input (hard rule 7): defensive, bounded
+regexes only, and nothing here acts beyond returning suggestions.
 """
 
 import re
-from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Final
 
-# Common German/English club-invoice patterns (bounded, defensive).
+_DATE = r"[0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4}"
+_ISO_DATE = r"\d{4}-\d{2}-\d{2}"
+_AMOUNT = r"€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})"
+_AMOUNT_FIELDS: Final = frozenset({"net", "vat", "gross"})
+
+# Common German/English club-invoice patterns; the first match per field wins.
 _PATTERNS: Final = (
-    (
-        r"Rechnung(?:s-)?(?:nummer|Nr\.?)[:\s]*([A-Za-z0-9/\-]{2,24})",
-        "invoice_number",
-        0.8,
-    ),
-    (r"Invoice(?: number| no\.?)[:\s]*([A-Za-z0-9/\-]{2,24})", "invoice_number", 0.8),
-    (r"Rechnungsdatum[:\s]*([0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4})", "invoice_date", 0.7),
-    (r"Rechnungsdatum[:\s]*(\d{4}-\d{2}-\d{2})", "invoice_date", 0.7),
-    (
-        r"F[aä]llig(?:keitsdatum)?[:\s]*([0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4})",
-        "due_date",
-        0.7,
-    ),
-    (
-        r"Due(?: date)?[:\s]*([0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4}|\d{4}-\d{2}-\d{2})",
-        "due_date",
-        0.7,
-    ),
-    (r"Betrag[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "gross", 0.6),
-    (r"Gesamt(?:betrag)?[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "gross", 0.6),
-    (r"Total(?: amount)?[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "gross", 0.6),
-    (r"Netto(?:betrag)?[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "net", 0.6),
-    (r"MwSt(?:\s*\d+%,?)?[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "vat", 0.5),
-    (r"(?:Ausweisung der )?USt[:\s]*€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})", "vat", 0.5),
+    ("invoice_number", r"Rechnung(?:s-)?(?:nummer|Nr\.?)[:\s]*([A-Za-z0-9/\-]{2,24})"),
+    ("invoice_number", r"Invoice(?: number| no\.?)[:\s]*([A-Za-z0-9/\-]{2,24})"),
+    ("invoice_date", rf"Rechnungsdatum[:\s]*({_DATE}|{_ISO_DATE})"),
+    ("due_date", rf"F[aä]llig(?:keitsdatum)?[:\s]*({_DATE})"),
+    ("due_date", rf"Due(?: date)?[:\s]*({_DATE}|{_ISO_DATE})"),
+    ("gross", rf"Betrag[:\s]*{_AMOUNT}"),
+    ("gross", rf"Gesamt(?:betrag)?[:\s]*{_AMOUNT}"),
+    ("gross", rf"Total(?: amount)?[:\s]*{_AMOUNT}"),
+    ("net", rf"Netto(?:betrag)?[:\s]*{_AMOUNT}"),
+    ("vat", rf"MwSt(?:\s*\d+%,?)?[:\s]*{_AMOUNT}"),
+    ("vat", rf"(?:Ausweisung der )?USt[:\s]*{_AMOUNT}"),
 )
 
 
-@dataclass
-class Suggestion:
-    """One extracted field: value plus confidence, pending human review."""
-
-    field: str
-    value: str | float | None
-    confidence: float
+def _parse_amount(raw: str) -> Decimal:
+    """German decimal format `1.234,56` → Decimal('1234.56')."""
+    return Decimal(raw.replace(".", "").replace(",", "."))
 
 
-@dataclass
-class Extraction:
-    supplier: str | None = None
-    fields: dict[str, float | str] = field(default_factory=dict)
-    confidences: dict[str, float] = field(default_factory=dict)
-
-    def add(self, suggestion: Suggestion) -> None:
-        self.fields[suggestion.field] = suggestion.value
-        self.confidences[suggestion.field] = suggestion.confidence
-
-    @property
-    def confidence(self) -> float:
-        """Average per-field confidence, 0.0 when nothing was recognised."""
-        if not self.confidences:
-            return 0.0
-        return sum(self.confidences.values()) / len(self.confidences)
-
-
-def _parse_amount(raw: str) -> float | None:
-    """German decimal format `1.234,56` → float; non-matching → None."""
-    if not re.fullmatch(r"\d{1,4}(?:[.]\d{3})*,\d{2}", raw):
-        return None
-    return float(raw.replace(".", "").replace(",", "."))
-
-
-def parse_supplier(text: str) -> str | None:
+def _supplier(text: str) -> str | None:
     """Naive: first plausible header line (kept honest for manual review)."""
-    lines = [line.strip() for line in (text or "").splitlines()]
-    for line in lines[:8]:
+    for line in text.splitlines()[:8]:
+        line = line.strip()
         if 2 <= len(line) <= 64 and not line.startswith(("Rechnung", "Invoice")):
             return line
     return None
 
 
-def extract_fields(text: str) -> Extraction:
-    """Regex pass over a document text layer. Never raises on malformed
-    input: unrecognised documents simply yield a low-confidence, empty
-    suggestion set that lands in the review queue for manual entry."""
-    extraction = Extraction(supplier=parse_supplier(text))
-    for pattern, fieldname, confidence in _PATTERNS:
+def extract_fields(text: str) -> dict[str, str | Decimal]:
+    """Suggestions found in a document's text. Never raises on malformed
+    input: an unrecognised document simply yields fewer suggestions."""
+    suggestions: dict[str, str | Decimal] = {}
+    if supplier := _supplier(text):
+        suggestions["supplier"] = supplier
+    for fieldname, pattern in _PATTERNS:
+        if fieldname in suggestions:
+            continue
         match = re.search(pattern, text, re.IGNORECASE)
         if match is None:
             continue
-        if fieldname in ("gross", "net", "vat"):
-            value = _parse_amount(match.group(1))
-        else:
-            value = match.group(1).strip()
-        if value is not None:
-            extraction.add(
-                Suggestion(field=fieldname, value=value, confidence=confidence)
-            )
-    return extraction
+        raw = match.group(1).strip()
+        suggestions[fieldname] = (
+            _parse_amount(raw) if fieldname in _AMOUNT_FIELDS else raw
+        )
+    return suggestions

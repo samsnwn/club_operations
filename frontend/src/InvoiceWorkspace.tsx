@@ -7,10 +7,9 @@ type Invoice = {
   id: number;
   source: string;
   status: string;
-  confidence: number;
   created_at: string;
   suggestions: Record<string, string | number>;
-  supplier_guess: string | null;
+  missing_fields: string[];
 };
 
 type QueueResponse = { count: number; items: Invoice[] };
@@ -36,18 +35,25 @@ type Props = {
 
 const amountFields = new Set(['net', 'vat', 'gross']);
 
+const fieldLabels: Record<string, string> = Object.fromEntries(reviewFields);
+
 /** Maps invoice-service statuses onto the badge palette (docs/design-system.md). */
 function statusTone(status: string) {
   if (status === 'needs_attention') return 'badge-warning';
-  if (status === 'confirmed' || status === 'exported') return 'badge-success';
-  if (status === 'rejected' || status === 'failed') return 'badge-danger';
+  if (status === 'confirmed') return 'badge-success';
+  if (status === 'rejected') return 'badge-danger';
   return 'badge-info';
 }
 
-function confidenceLevel(confidence: number) {
-  if (confidence < 0.5) return 'low';
-  if (confidence >= 0.85) return 'high';
-  return 'medium';
+/** Ingestion channel names from GLOSSARY.md. */
+const sourceLabels: Record<string, string> = {
+  drive: 'Invoice folder',
+  drop_folder: 'Local inbox',
+};
+
+function missingSummary(missing: string[]) {
+  if (missing.length === 0) return 'All required fields suggested';
+  return `Missing: ${missing.map((field) => fieldLabels[field] ?? field).join(', ')}`;
 }
 
 export function InvoiceWorkspace({ onAuthProblem }: Props) {
@@ -211,7 +217,8 @@ export function InvoiceWorkspace({ onAuthProblem }: Props) {
           <div className="panel-header">
             <div>
               <p className="eyebrow">
-                Invoice #{selected.id} · {selected.source}
+                Invoice #{selected.id} ·{' '}
+                {sourceLabels[selected.source] ?? selected.source}
               </p>
               <h2>Check and confirm the extracted values</h2>
             </div>
@@ -298,27 +305,15 @@ export function InvoiceWorkspace({ onAuthProblem }: Props) {
                 >
                   <span className="invoice-summary">
                     <span className="eyebrow">
-                      Invoice #{invoice.id} · {invoice.source}
+                      Invoice #{invoice.id} ·{' '}
+                      {sourceLabels[invoice.source] ?? invoice.source}
                     </span>
                     <strong>
-                      {invoice.supplier_guess ?? 'Supplier not recognised'}
+                      {invoice.suggestions.supplier ??
+                        'Supplier not recognised'}
                     </strong>
-                    <span className="invoice-confidence">
-                      <span
-                        className="meter"
-                        data-level={confidenceLevel(invoice.confidence)}
-                        aria-hidden="true"
-                      >
-                        <span
-                          style={{
-                            width: `${Math.round(invoice.confidence * 100)}%`,
-                          }}
-                        />
-                      </span>
-                      <span className="numeric">
-                        {Math.round(invoice.confidence * 100)}% extraction
-                        confidence
-                      </span>
+                    <span className="invoice-missing">
+                      {missingSummary(invoice.missing_fields)}
                     </span>
                   </span>
                   <span className={`badge ${statusTone(invoice.status)}`}>

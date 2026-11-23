@@ -1,5 +1,5 @@
-"""Review queue API (README §Phase 0.5): list pending items, inspect one with
-the extracted suggestions, confirm/correct/reject. Auth: the backend facade
+"""Review queue API (README §Phase 0.5): list open invoices, inspect one with
+its suggestions, confirm/correct/reject. Auth: the backend facade
 authenticates the user and forwards the username in `X-Reviewer`; that header
 is only trusted together with the internal service token. There is no second
 credential path — direct use requires the internal token, and reviewer identity
@@ -11,108 +11,81 @@ the gate between extraction and the accounting sheet (hard rules 1 and 3).
 
 import datetime as dt
 import logging
-import math
 import secrets
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.base import get_db
-from app.models.invoice import Invoice
+from app.models.invoice import OPEN_STATUSES, REQUIRED_FIELDS, Invoice
 
 router = APIRouter(tags=["review"])
 log = logging.getLogger(__name__)
 
-FINAL_FIELDS = (
-    "supplier",
-    "invoice_number",
-    "invoice_date",
-    "due_date",
-    "net",
-    "vat",
-    "gross",
-    "category",
-    "payment_method",
-    "description",
-)
-
-# Review is a one-way transition out of these statuses.
-REVIEWABLE_STATUSES = ("pending_review", "needs_attention")
-
-# A confirmed row is export-eligible, so it must at least say who was paid,
-# when and how much. The invoice number stays optional (till receipts).
-REQUIRED_FINAL_FIELDS = ("supplier", "invoice_date", "gross")
-
 # `reviewed_by` is String(64) in the model; keep the forwarded identity within it.
 MAX_REVIEWER_LENGTH = 64
 
-
-def _token_matches(provided: str, expected: str) -> bool:
-    """Constant-time comparison that also tolerates non-ASCII header input."""
-    if not provided or not expected:
-        return False
-    return secrets.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
+QUEUE_LIMIT = 200
 
 
 def internal_token(authorization: Annotated[str | None, Header()] = None) -> None:
+    """Require the internal service token (constant-time comparison)."""
+    provided = authorization.removeprefix("Bearer ").strip() if authorization else ""
     expected = get_settings().internal_token
-    token = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if not _token_matches(token, expected):
+    if not (
+        provided
+        and expected
+        and secrets.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
+    ):
         raise HTTPException(status_code=401, detail="Invalid internal service token")
 
 
 def current_reviewer(
-    authorization: Annotated[str | None, Header()] = None,
+    _: Annotated[None, Depends(internal_token)],
     x_reviewer: Annotated[str | None, Header()] = None,
 ) -> str:
-    """Resolve the reviewing identity.
-
-    The backend facade holds the internal token and forwards the authenticated
-    username as `X-Reviewer`; a bare header never authenticates. Requests
-    without the header (scheduled/system work) are attributed to "backend".
-    """
-    token = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if not _token_matches(token, get_settings().internal_token):
-        raise HTTPException(status_code=401, detail="Unrecognised reviewer token")
+    """The reviewing identity forwarded by the facade. A bare header never
+    authenticates; requests without one (system work) are "backend"."""
     reviewer = (x_reviewer or "").strip()
     return reviewer[:MAX_REVIEWER_LENGTH] if reviewer else "backend"
 
 
+def queue(db: Session, status: str = "open") -> list[Invoice]:
+    """Invoices in `status` ("open" = every open status): needs-attention
+    first, then oldest first. Shared by the API and the digest."""
+    statuses = OPEN_STATUSES if status == "open" else (status,)
+    return (
+        db.query(Invoice)
+        .filter(Invoice.status.in_(statuses))
+        .order_by(Invoice.status != "needs_attention", Invoice.created_at, Invoice.id)
+        .limit(QUEUE_LIMIT)
+        .all()
+    )
+
+
 def _serialise(invoice: Invoice) -> dict:
-    guesses = {
-        column.name[: -len("_guess")]: getattr(invoice, column.name)
-        for column in Invoice.__table__.columns
-        if column.name.endswith("_guess") and getattr(invoice, column.name) is not None
-    }
     return {
         "id": invoice.id,
         "source": invoice.source,
         "status": invoice.status,
-        "confidence": invoice.confidence,
         "created_at": invoice.created_at.isoformat(),
-        "suggestions": guesses,
-        "supplier_guess": invoice.supplier_guess,
+        "suggestions": invoice.suggestions(),
+        "missing_fields": invoice.missing_fields(),
     }
 
 
 @router.get("/queue")
 def list_queue(
     db: Annotated[Session, Depends(get_db)],
-    reviewer: Annotated[str, Depends(current_reviewer)],
-    status: str = "pending_review",
+    _: Annotated[str, Depends(current_reviewer)],
+    status: str = "open",
 ) -> dict:
-    """Pending items, confident captures first (stage 1: all need closing)."""
-    rows = (
-        db.query(Invoice)
-        .filter(Invoice.status == status)
-        .order_by(Invoice.confidence.desc(), Invoice.created_at.asc())
-        .limit(200)
-        .all()
-    )
+    rows = queue(db, status)
     return {"count": len(rows), "items": [_serialise(row) for row in rows]}
 
 
@@ -120,53 +93,62 @@ def list_queue(
 def get_item(
     invoice_id: int,
     db: Annotated[Session, Depends(get_db)],
-    reviewer: Annotated[str, Depends(current_reviewer)],
+    _: Annotated[str, Depends(current_reviewer)],
 ) -> dict:
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    payload = _serialise(invoice)
-    payload["extracted_text"] = invoice.extracted_text
-    return payload
+    return {**_serialise(invoice), "extracted_text": invoice.extracted_text}
+
+
+Amount = Annotated[
+    Decimal | None, Field(allow_inf_nan=False, max_digits=12, decimal_places=2)
+]
 
 
 class ReviewPayload(BaseModel):
-    """Correction payload: any field may be overridden before confirm.
-    Values land in `*_final`; confirmed rows are the only exported rows."""
+    """Final values: any field may be corrected before confirm. Values land
+    in `*_final`; confirmed rows are the only exported rows."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
 
     supplier: str | None = None
     invoice_number: str | None = None
     invoice_date: str | None = None
     due_date: str | None = None
-    net: float | None = None
-    vat: float | None = None
-    gross: float | None = None
+    net: Amount = None
+    vat: Amount = None
+    gross: Amount = None
     category: str | None = None
     payment_method: str | None = None
     description: str | None = None
 
 
-def _review(db: Session, invoice_id: int, values: dict) -> str | None:
-    """Apply a review decision only while the invoice is still reviewable.
+def _review(db: Session, invoice_id: int, values: dict) -> None:
+    """Apply a review decision only while the invoice is still open.
 
     The status check is part of the UPDATE itself, so two reviewers acting on
-    the same invoice cannot both win. Returns None on success, otherwise the
-    status that blocked the transition.
+    the same invoice cannot both win; the loser gets 409.
     """
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
     result = db.execute(
         update(Invoice)
-        .where(Invoice.id == invoice_id, Invoice.status.in_(REVIEWABLE_STATUSES))
-        .values(**values)
+        .where(Invoice.id == invoice_id, Invoice.status.in_(OPEN_STATUSES))
+        .values(**values, reviewed_at=dt.datetime.now())
         .execution_options(synchronize_session=False)
     )
     db.commit()
     if result.rowcount:
-        return None
+        return
     db.refresh(invoice)
-    return invoice.status
+    if invoice.status == "confirmed" and values["status"] == "rejected":
+        raise HTTPException(
+            status_code=409,
+            detail="Already confirmed — ask the accountant to fix the sheet instead",
+        )
+    raise HTTPException(status_code=409, detail=f"Already {invoice.status}")
 
 
 @router.post("/queue/{invoice_id}/confirm")
@@ -176,37 +158,27 @@ def confirm(
     db: Annotated[Session, Depends(get_db)],
     reviewer: Annotated[str, Depends(current_reviewer)],
 ) -> dict:
-    finals: dict = {}
-    for fieldname in FINAL_FIELDS:
-        value = getattr(payload, fieldname, None)
-        if isinstance(value, str):
-            value = value.strip() or None
-        if isinstance(value, float) and not math.isfinite(value):
-            raise HTTPException(
-                status_code=422, detail=f"{fieldname} must be a finite number"
-            )
-        if value is not None:
-            finals[fieldname] = value
-    missing = [name for name in REQUIRED_FINAL_FIELDS if name not in finals]
+    finals = {
+        name: value
+        for name, value in payload.model_dump().items()
+        if value not in (None, "")
+    }
+    missing = [name for name in REQUIRED_FIELDS if name not in finals]
     if missing:
         raise HTTPException(
             status_code=422,
             detail=f"Required before confirming: {', '.join(missing)}",
         )
-
-    # Reviewer-confirmed data is sourced-of-record for export (hard rule 1).
-    blocked_by = _review(
+    # Reviewer-confirmed data is the source of record for export (hard rule 1).
+    _review(
         db,
         invoice_id,
         {
             **{f"{name}_final": value for name, value in finals.items()},
             "status": "confirmed",
             "reviewed_by": reviewer,
-            "reviewed_at": dt.datetime.now(),
         },
     )
-    if blocked_by is not None:
-        raise HTTPException(status_code=409, detail=f"Already {blocked_by}")
     log.info("Invoice %s confirmed by %s", invoice_id, reviewer)
     return {"id": invoice_id, "status": "confirmed", "reviewed_by": reviewer}
 
@@ -217,20 +189,5 @@ def reject(
     db: Annotated[Session, Depends(get_db)],
     reviewer: Annotated[str, Depends(current_reviewer)],
 ) -> dict:
-    blocked_by = _review(
-        db,
-        invoice_id,
-        {
-            "status": "rejected",
-            "reviewed_by": reviewer,
-            "reviewed_at": dt.datetime.now(),
-        },
-    )
-    if blocked_by == "confirmed":
-        raise HTTPException(
-            status_code=409,
-            detail="Already confirmed — ask the accountant to fix the sheet instead",
-        )
-    if blocked_by is not None:
-        raise HTTPException(status_code=409, detail=f"Already {blocked_by}")
+    _review(db, invoice_id, {"status": "rejected", "reviewed_by": reviewer})
     return {"id": invoice_id, "status": "rejected"}

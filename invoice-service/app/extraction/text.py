@@ -1,7 +1,7 @@
 """Text-layer extraction from captured files.
 
 PDFs with a text layer go through pypdf directly. Photo/scan OCR via
-Tesseract corresponds to Python 50% of the volume (owner answer #3) — the
+Tesseract covers about 50% of the volume (owner answer #3) — the
 OCR node is kept behind `ocr_text()` so it can be swapped for a local vision
 model later without touching the pipeline. Tesseract is NOT a Python dep:
 the Docker image installs the system package; host dev tests run on PDF
@@ -32,13 +32,9 @@ def pdf_text(content: bytes, max_pages: int | None = None) -> str:
         return ""
 
 
-def has_text_layer(content: bytes) -> bool:
-    return bool(pdf_text(content).strip())
-
-
 def ocr_text(content: bytes) -> str:
     """Tesseract OCR for image inputs. Clean skip when the binary is missing
-    (dev/TestSimple until the Docker image ships it)."""
+    (host dev without Tesseract installed)."""
     try:
         result = subprocess.run(
             ["tesseract", "stdin", "stdout", "-l", "deu+eng"],

@@ -1,9 +1,8 @@
 """Service configuration.
 
-Phase 0.5 credentials (Gmail OAuth, Drive API, Sheets API) live outside the
-repository per hard rule 4 (`INVOICE_` env vars / a local `.env`).
-Every connector degrades to a clean "not configured" skip rather than failing
-the whole pipeline run.
+Phase 0.5 credentials (the Drive service-account key, later the Sheets API)
+live outside the repository per hard rule 4 (`INVOICE_` env vars / a local
+`.env`, key files under the gitignored `secrets/`).
 """
 
 from functools import lru_cache
@@ -35,7 +34,13 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/invoices.db"
     # Where captured originals are stored (gitignored).
     attachments_dir: str = "./data/attachments"
+    # Local inbox: development, tests and offline demos only.
     inbox_dir: str = "./data/inbox"
+    # Invoice folder: the owner's shared Google Drive folder, read through a
+    # service account the folder is shared with. When both are set, Import
+    # reads the invoice folder instead of the local inbox.
+    drive_folder_id: str | None = None
+    drive_credentials_file: str | None = None
     # Resource limits for untrusted captures and document extraction.
     max_attachment_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
     max_pdf_pages: int = Field(default=100, gt=0)
