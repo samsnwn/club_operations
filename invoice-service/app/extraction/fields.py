@@ -12,7 +12,9 @@ from typing import Final
 
 _DATE = r"[0-3]?\d\.\s?\d{1,2}\.\s?\d{2,4}"
 _ISO_DATE = r"\d{4}-\d{2}-\d{2}"
-_AMOUNT = r"€?\s*(\d{1,4}(?:[.]\d{3})*,\d{2})"
+# At most 10 integer digits (`9999.999.999,99`), so a suggestion always fits
+# `Numeric(12,2)` and the confirm schema; longer OCR noise suggests nothing.
+_AMOUNT = r"€?\s*(\d{1,4}(?:[.]\d{3}){0,2},\d{2})"
 _AMOUNT_FIELDS: Final = frozenset({"net", "vat", "gross"})
 
 # Common German/English club-invoice patterns; the first match per field wins.
