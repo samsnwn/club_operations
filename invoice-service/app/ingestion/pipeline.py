@@ -17,6 +17,7 @@ from app.ingestion.capture import CapturedFile
 from app.ingestion.drive import DriveSource
 from app.ingestion.drop_folder import DropFolderSource
 from app.models.invoice import Invoice, attachment_path
+from app.models.rejected_capture import RejectedCapture
 
 log = logging.getLogger(__name__)
 
@@ -42,8 +43,9 @@ def import_from(db: Session, source: DriveSource | DropFolderSource) -> int:
     failures (Drive unreachable or refusing access) propagate to the caller."""
 
     def is_known(md5: str) -> bool:
+        """Already an invoice, or already rejected for good."""
         known = db.query(Invoice.id).filter(Invoice.content_md5 == md5).first()
-        return known is not None
+        return known is not None or db.get(RejectedCapture, md5) is not None
 
     new_count = 0
     for captured in source.poll(is_known):
@@ -123,6 +125,16 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
                 page_count,
                 settings.max_pdf_pages,
             )
+            # The page count never changes, so remember the file: the invoice
+            # folder then skips it without downloading it again.
+            db.merge(
+                RejectedCapture(
+                    content_md5=content_md5,
+                    filename=captured.filename[:255],
+                    reason=f"{page_count} PDF pages (limit {settings.max_pdf_pages})",
+                )
+            )
+            db.commit()
             return False
 
     storage_path = attachment_path(settings.attachments_dir, content_hash)
