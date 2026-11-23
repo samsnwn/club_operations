@@ -20,9 +20,11 @@ exposes an owner/admin-only facade under `/api/v1/invoices/*`. The service's
 own port (`:8081`) must remain internal because its token bypasses facade
 authentication.
 
-Implemented today: local drop-folder/fixture ingestion, extraction and the
-review queue. Stubbed: Drive and Gmail ingestion, the scheduled catch-up run,
-automatic digest sending and Google Sheets export. Confirmed invoice data is
+Implemented today: local drop-folder ingestion, extraction and the review
+queue, plus import from the owner's Google Drive invoice folder (read-only
+service account; the local inbox stands in during development). No email
+ingestion in Phase 0.5. Stubbed: Google Sheets export. Not started:
+the scheduled catch-up run and automatic digest sending. Confirmed invoice data is
 intended to flow into the main platform's Documents and Finance modules later
 rather than being throwaway work.
 

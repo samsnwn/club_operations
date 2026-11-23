@@ -658,14 +658,14 @@ This is deliberately built before the main platform foundation. It needs no PWA 
 
 The service is essentially a small independent Python pipeline:
 
-**Ingest (email + Drive) → Classify (is it an invoice? which supplier?) → Extract (fields) → Review queue → Write to sheet**
+**Ingest (Drive folder) → Classify (is it an invoice? which supplier?) → Extract (fields) → Review queue → Write to sheet**
 
 #### Ingestion channels
 
 There are two ingestion channels, with different roles:
 
 1. **Google Drive folder (primary).** The owner drops invoice files into a defined Drive folder; the service picks up new files by polling the Drive API. This is the most reliable channel: no email filtering, and the owner controls exactly what enters by dragging files in.
-2. **Email account (secondary, automated).** Emails are read through the Gmail API (or IMAP, depending on the provider). Invoice attachments are extracted from recognized supplier senders.
+2. **Email account (secondary, automated) — not planned for Phase 0.5.** The owner decided on 2026-11-23 that the Drive folder is the only source (see owner answer #2 below). Kept as background for a later phase: emails would be read through the Gmail API (or IMAP, depending on the provider), and invoice attachments extracted from recognized supplier senders.
 
 For a personal Gmail account, OAuth verification or an app password is required; this setup friction should be budgeted. A cleaner alternative is a **dedicated Google account** for the system, with a Gmail forwarding rule on the owner's own mailbox (e.g. "messages from supplier X with attachments → forward"). The service then only touches that dedicated account, permissions stay simple, and the owner's daily mailbox is untouched. Once processed, source emails should be labelled (e.g. "ingested"), not deleted.
 
@@ -707,7 +707,7 @@ Which of the two applies is one of the first questions to settle with the owner.
 #### Phase 0 questions specific to this phase
 
 1. Where does the Excel sheet live today — on Google Drive, or must it remain a local `.xlsx`? (Determines Sheets API vs. file locking.)
-2. Which email provider is in use, and can OAuth/app-password access be arranged? Is a dedicated forwarding mailbox acceptable?
+2. Which email provider is in use, and can OAuth/app-password access be arranged? Is a dedicated forwarding mailbox acceptable? *(Superseded 2026-11-23: no email ingestion in Phase 0.5 — answer #2.)*
 3. What proportion of invoices are clean PDFs versus scans or photos? (Determines the OCR approach and the local-first trade-off.)
 4. What are the exact columns of the existing sheet, which columns are formulas versus plain values, and is there one tab or several (per month/supplier/year)?
 5. Who opens the sheet, from where, and how often — including the accountant, if one is involved?
@@ -723,9 +723,12 @@ below is written against them and will be adjusted where reality differs.
 1. **Sheet location:** Google Drive → the service writes through the **Google
    Sheets API** (append-only; existing rows and formula columns are never
    touched — output artifact, hard rule 3).
-2. **Email:** Gmail, with a **dedicated forwarding mailbox** created for the
-   service (owner's daily mailbox untouched, exactly the "cleaner alternative"
-   described above). Gmail API via OAuth for that mailbox only.
+2. **Source (revised 2026-11-23):** a single **Google Drive folder** the
+   owner uploads invoices to; **no email ingestion** in Phase 0.5 (this
+   replaces the earlier Gmail forwarding-mailbox answer). The service reads
+   the folder with a service account the owner shares it with (read-only),
+   leaves files in place as his archive, and imports when someone clicks
+   Import (scheduled runs come later).
 3. **Format mix:** ~50% photos/scans, ~50% clean PDFs → local OCR is
    mandatory; **Tesseract only, no cloud OCR**. Lower photo-quality accuracy is
    absorbed by the review queue (stage 1: everything is confirmed by a human
@@ -751,10 +754,10 @@ below is written against them and will be adjusted where reality differs.
    guidance).
 
 Interim hosting: the dedicated club-hardware setup does not exist yet, so the
-service initially runs **on demand on the owner's workstation** (catch-up
-polling with per-source sync watermarks; offline periods simply mean the next
-run ingests the backlog — the forwarding mailbox and Drive folder buffer
-everything). Collapsed digest notifications: a quiet period produces one
+service initially runs **on demand on the owner's workstation** (each
+import lists the Drive folder and takes every file not yet imported, so
+offline periods simply mean the next run ingests the backlog — the folder
+buffers everything). Collapsed digest notifications: a quiet period produces one
 "everything since last review" summary. This upgrades to a dedicated always-on
 box with no rework the moment the hardware exists.
 

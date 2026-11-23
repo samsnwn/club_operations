@@ -4,6 +4,56 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project currently has no runtime releases, so entries are dated by change.
 
+## [2026-11-23]
+
+### Added
+- Import from the owner's Google Drive **invoice folder**, the only Phase 0.5
+  source (owner decision; email ingestion is no longer planned). A read-only
+  service account lists the folder, skips files whose MD5 is already on an
+  invoice (re-runs and duplicate uploads are never downloaded again),
+  downloads PDF/JPEG/PNG/WebP files directly in the folder, and leaves them in
+  place. Invoices record `content_md5` and the Drive file ID (`source_ref`);
+  migration `7e1b3d5f9a2c`. Import fails with 503 "Google Drive unavailable"
+  or 502 "access refused — check that the invoice folder is shared with the
+  service account" instead of reporting 0 new. Without Drive settings, Import
+  reads the local inbox as before. Setup steps in `docs/google-drive-setup.md`;
+  the key lives in the gitignored `invoice-service/secrets/`, mounted
+  read-only in the dev compose. Not yet verified against a real folder.
+- `GLOSSARY.md`: domain language for invoice ingestion (invoice folder, local
+  inbox, ingestion channel, capture, invoice, extraction, suggestion,
+  classification, required fields, needs attention, open, confirm, reject).
+- `docs/google-drive-setup.md`: step-by-step Drive setup with the owner,
+  recommending a dedicated club Google account that owns the folder, the
+  Cloud project and the service account.
+
+### Changed
+- Invoice status now follows required-field coverage: an invoice is
+  `needs_attention` when extraction did not suggest supplier, invoice date or
+  gross, otherwise `pending_review`. The averaged per-pattern confidence score
+  is gone (it ranked a lone invoice-number match above a fully parsed
+  invoice). Queue items carry `missing_fields`; the review screen and digest
+  show "Missing: …" instead of a confidence percentage.
+- One queue order everywhere: `GET /api/v1/queue?status=open` (the default)
+  lists needs-attention invoices first, then oldest first. The backend facade
+  passes `status` through instead of merging two calls, and the digest uses
+  the same query.
+- Amounts (`net`, `vat`, `gross`) are stored as exact decimals
+  (`Numeric(12,2)`); `*_guess` columns are renamed `*_suggested`. Queue
+  suggestions return amounts as decimal strings (`"1190.00"`). Migration
+  `4c2e7a9b1d3f` keeps existing rows.
+- The review API's two token checks share one implementation; confirm
+  validates amounts through the request schema.
+
+### Removed
+- Drive and Gmail placeholder adapters, the fixture source, sync watermarks
+  and the source cursor (the placeholders were never a working integration;
+  the real Drive channel above replaces them).
+- Never-populated columns (`confidence`, `currency`, and the category,
+  payment-method and description suggestions; reviewers still enter those
+  final values), plus dead code (`AUTO_OK_THRESHOLD`, `has_text_layer`).
+- The frontend's handling of statuses that do not exist (`exported`,
+  `failed`).
+
 ## [2026-11-10]
 
 ### Added

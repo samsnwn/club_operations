@@ -165,7 +165,7 @@ All primitives are plain CSS classes, so they compose with Tailwind utilities.
 | `.card` (+ `.card-interactive`) | Any grouped content. Interactive for clickable rows. |
 | `.badge` + `badge-info / -success / -warning / -danger` | Status. Plain `.badge` = neutral (inactive). |
 | `.alert` + `alert-danger / -success / -info` | Inline messages; use `role="alert"` for errors, `role="status"` for notices. |
-| `.meter[data-level=low|medium|high]` | Confidence and progress. Low = copper, high = green. |
+| `.meter[data-level=low|medium|high]` | Progress. Low = copper, high = green. |
 | `.empty-state` | Dashed box with a short heading and one sentence. |
 | `.eyebrow` | Context label above a title. |
 
@@ -173,14 +173,15 @@ All primitives are plain CSS classes, so they compose with Tailwind utilities.
 
 | Status | Badge |
 | --- | --- |
-| `pending_review`, other in-progress | `badge-info` |
+| `pending_review` | `badge-info` |
 | `needs_attention` | `badge-warning` |
-| `confirmed`, `exported` | `badge-success` |
-| `rejected`, `failed` | `badge-danger` |
+| `confirmed` | `badge-success` |
+| `rejected` | `badge-danger` |
 
-Confidence: `< 50%` low (copper), `50–84%` medium (neon), `≥ 85%` high (green).
-Extraction output is always a *suggestion* — high confidence still needs a
-human confirm (AGENTS.md hard rule 1); the UI must never imply otherwise.
+Queue cards name the required fields extraction did not suggest ("Missing:
+Invoice date") rather than a confidence score. Extraction output is always a
+*suggestion* — a card with nothing missing still needs a human confirm
+(AGENTS.md hard rule 1); the UI must never imply otherwise.
 
 ## 7. Layout patterns
 
