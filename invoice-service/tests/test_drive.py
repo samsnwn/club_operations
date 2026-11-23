@@ -277,3 +277,32 @@ def test_import_endpoint_reports_drive_failures(
         Base.metadata.drop_all(engine)
     assert response.status_code == status
     assert response.json()["detail"] == str(error)
+
+
+def test_file_over_the_page_limit_is_not_downloaded_again(
+    db: Session, credentials: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rejection that cannot change on a retry is remembered by MD5."""
+    monkeypatch.setattr(pipeline.text_extractor, "pdf_page_count", lambda _: 999)
+    drive = FakeDrive([_pdf("long", b"%PDF-1.4 fake long document")])
+    source = drive.source(credentials, max_bytes=get_settings().max_attachment_bytes)
+
+    assert pipeline.import_from(db, source) == 0
+    assert drive.downloads == ["long"]
+    drive.downloads.clear()
+    assert pipeline.import_from(db, source) == 0
+    assert drive.downloads == []
+    assert db.query(Invoice).count() == 0
+
+
+def test_failed_download_is_retried_on_the_next_import(
+    db: Session, credentials: Path
+) -> None:
+    """Transient failures are never remembered as rejections."""
+    drive = FakeDrive([_pdf("flaky", INVOICE_TEXT, broken=True)])
+    source = drive.source(credentials, max_bytes=get_settings().max_attachment_bytes)
+
+    assert pipeline.import_from(db, source) == 0
+    drive.downloads.clear()
+    assert pipeline.import_from(db, source) == 0
+    assert drive.downloads == ["flaky"]
