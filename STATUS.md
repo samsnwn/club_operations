@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-10
+Last updated: 2026-11-23
 
 ## Stage: Phase 0.5 invoice quick win — manual review demo and internal authentication complete; Drive invoice-folder import built (not yet verified against the real folder); sheet export is a stub; scheduling not started
 
@@ -42,7 +42,7 @@ Last updated: 2026-11-10
 - API-level smoke pass (2026-11-09) against temporary SQLite databases on the host: both health checks, owner CLI bootstrap + login, cross-origin rejection, staff creation, forced staff password change, drop-folder fixture import, confirm-with-corrections with `reviewed_by` attribution, duplicate-confirm 409, staff invoice-role gate, and logout invalidation all passed.
 - Invoice-service auth hardening (2026-11-09): removed the legacy per-user `INVOICE_REVIEW_TOKENS` path (the internal token + `X-Reviewer` is now the only credential path), switched token checks to constant-time comparison, made the service refuse the known development token outside `INVOICE_ENVIRONMENT=development`, and bound the dev compose port to `127.0.0.1` only. Five new tests cover the removed path and the startup guards.
 - Agent-facing docs refreshed (2026-11-09): `AGENTS.md` current stage, `STATUS.md`, `docs/next-steps.md` and the service READMEs now distinguish implemented functionality from stubs; `frontend/README.md` replaced the Vite template boilerplate with project instructions.
-- Invoice-service simplification (2026-11-23): Drive/Gmail placeholders, fixture source and sync watermarks removed; the confidence score replaced by required-field coverage (`missing_fields` in the API, "Missing: …" in the UI and digest); one open-queue order; amounts stored as exact decimals; `*_guess` columns renamed `*_suggested` (additive migration, rows preserved); domain terms in `GLOSSARY.md`.
+- Invoice-service simplification (2026-11-23): Drive/Gmail placeholders, fixture source and sync watermarks removed; the confidence score replaced by required-field coverage (`missing_fields` in the API, "Missing: …" in the UI and digest); one open-queue order; amounts stored as exact decimals; `*_guess` columns renamed `*_suggested` (migration `4c2e7a9b1d3f` keeps invoice rows and re-triages open ones, but drops the `sync_watermarks` table and the `confidence`, `currency` and three unused `*_guess` columns; a downgrade does not restore that data); files over the PDF page limit are remembered (`rejected_captures`) so the invoice folder stops re-downloading them; domain terms in `GLOSSARY.md`.
 - Google Drive invoice folder (2026-11-23): owner decided the shared Drive folder is the only source (no email). Import reads it through a read-only service account, skips known files by MD5 before downloading, leaves files in place, records the Drive file ID, and fails visibly (503/502) when Drive is unreachable or refuses access; the local inbox remains for development. Not yet verified against the real folder.
 
 ## In progress / not started
