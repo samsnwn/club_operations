@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.base import get_db
-from app.ingestion.pipeline import poll_drop_folder
+from app.ingestion import pipeline
+from app.ingestion.drive import DriveAccessRefused, DriveUnavailable
 from app.models.invoice import Invoice, attachment_path
 from app.review.routes import internal_token
 
@@ -23,14 +24,20 @@ _import_lock = threading.Lock()
 
 
 @router.post("/import")
-def import_drop_folder(
+def import_invoices(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[None, Depends(internal_token)],
 ) -> dict:
+    """Import from the invoice folder (or the local inbox in development).
+    A broken Drive connection fails visibly instead of reporting 0 new."""
     if not _import_lock.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="An import is already running")
     try:
-        return {"new_invoices": poll_drop_folder(db)}
+        return {"new_invoices": pipeline.import_invoices(db)}
+    except DriveUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except DriveAccessRefused as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     finally:
         _import_lock.release()
 

@@ -1,6 +1,6 @@
 """Digest notifications (owner answer #8): an email with instructions on what
 needs attention. Collapsed by design (interim plan A): one digest covers
-everything since the last reviewed item, so a machine that was off for days
+every open invoice, so a machine that was off for days
 produces a single email, not a backlog of them.
 """
 
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.invoice import Invoice
+from app.review.routes import queue
 
 log = logging.getLogger(__name__)
 
@@ -23,41 +24,33 @@ INSTRUCTIONS = (
     "Anweisungen / instructions: open the review queue, compare each item "
     "against the attached original, correct any field that the machine got "
     "wrong, then press Confirm. Rejected items are kept on file but never "
-    "exported. Rechnungen mit niedriger Konfidenz zuerst pruefen."
+    "exported. Rechnungen mit fehlenden Pflichtfeldern zuerst pruefen."
 )
 
 
 def build_digest(db: Session) -> str:
-    """Human-readable summary of everything waiting for review, plus counts."""
-    pending = (
-        db.query(Invoice)
-        .filter(Invoice.status.in_(["pending_review", "needs_attention"]))
-        .order_by(
-            Invoice.confidence.asc()
-        )  # worst first — that's where attention is needed
-        .all()
-    )
-    attention = [item for item in pending if item.status == "needs_attention"]
-    lines = [
-        f"Blue Velvet Invoice Service — {len(pending)} item(s) need review",
-        "",
-    ]
+    """Human-readable summary of every open invoice, in queue order."""
+    items = queue(db)
+    attention = [item for item in items if item.status == "needs_attention"]
+    ready = [item for item in items if item.status == "pending_review"]
+    lines = [f"Blue Velvet Invoice Service — {len(items)} item(s) need review", ""]
     if attention:
-        lines.append("!! Not recognised automatically — enter the values manually:")
+        lines.append("!! Missing required fields — enter them by hand:")
         lines.extend(
-            f"  - #{item.id} {item.supplier_guess or '(unknown supplier)'}"
+            f"  - #{item.id} {_supplier(item)} — missing "
+            f"{', '.join(item.missing_fields())}"
             for item in attention
         )
         lines.append("")
-    lines.append("Others (check extracted fields, then confirm):")
-    lines.extend(
-        f"  - #{item.id} {item.supplier_guess or '(unknown supplier)'} — confidence {item.confidence:.0%}"
-        for item in pending
-        if item.status == "pending_review"
-    )
+    lines.append("Ready to check and confirm:")
+    lines.extend(f"  - #{item.id} {_supplier(item)}" for item in ready)
     lines.append("")
     lines.append(INSTRUCTIONS)
     return "\n".join(lines)
+
+
+def _supplier(invoice: Invoice) -> str:
+    return invoice.supplier_suggested or "(unknown supplier)"
 
 
 def send_digest(db: Session) -> bool:

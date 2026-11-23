@@ -114,26 +114,8 @@ async def import_invoices(user: InvoiceReviewer) -> dict:
 
 
 @router.get("/queue")
-async def invoice_queue(user: InvoiceReviewer, status: str = "all") -> Any:
-    if status == "all":
-        # Two service calls merged into one view. The ordering must mirror the
-        # service's own queue order: confident captures first, oldest first
-        # within a confidence tie.
-        pending = await _request(
-            "GET",
-            "/api/v1/queue",
-            reviewer=user.username,
-            params={"status": "pending_review"},
-        )
-        attention = await _request(
-            "GET",
-            "/api/v1/queue",
-            reviewer=user.username,
-            params={"status": "needs_attention"},
-        )
-        items = [*pending["items"], *attention["items"]]
-        items.sort(key=lambda item: (-item["confidence"], item["created_at"]))
-        return {"count": len(items), "items": items}
+async def invoice_queue(user: InvoiceReviewer, status: str = "open") -> Any:
+    """Open invoices by default; the service owns the order."""
     return await _request(
         "GET",
         "/api/v1/queue",

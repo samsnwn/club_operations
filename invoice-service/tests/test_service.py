@@ -13,20 +13,20 @@ from app.api.v1 import invoices as invoice_routes
 from app.core.config import DEFAULT_INTERNAL_TOKEN, get_settings
 from app.db.base import Base, SessionLocal, engine
 from app.ingestion import pipeline
-from app.ingestion.fixtures import FixtureSource
-from app.ingestion.pipeline import ingest_file, poll_sources
+from app.ingestion.capture import CapturedFile
+from app.ingestion.drop_folder import DropFolderSource
+from app.ingestion.pipeline import import_from, ingest_file
 from app.main import create_app
 from app.models.invoice import Invoice
 from app.notify.digest import build_digest
 from app.review.routes import MAX_REVIEWER_LENGTH
 
+# Deliberately fake club invoices (hard rule 4).
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "invoices"
 
-class CapturedTestFile:
-    source = "test"
-    filename = "oversized.txt"
 
-    def __init__(self, content: bytes) -> None:
-        self.content = content
+def _capture(content: bytes) -> CapturedFile:
+    return CapturedFile(source="test", filename="capture.bin", content=content)
 
 
 @pytest.fixture(name="db")
@@ -51,7 +51,12 @@ def client_fixture(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClien
 
 
 def run_fixture_ingest(db: Session) -> int:
-    return poll_sources(db, [FixtureSource()])
+    source = DropFolderSource(
+        FIXTURES_DIR,
+        max_attachment_bytes=get_settings().max_attachment_bytes,
+        settle_seconds=0,
+    )
+    return import_from(db, source)
 
 
 def test_health(client: TestClient) -> None:
@@ -60,16 +65,41 @@ def test_health(client: TestClient) -> None:
 
 def test_ingest_queues_and_dedupes(db: Session) -> None:
     assert run_fixture_ingest(db) == 3
-    # Watermark-based catch-up: second run adds nothing (all consumed).
+    # The folder offers its files again; content-hash dedupe adds nothing.
     assert run_fixture_ingest(db) == 0
     statuses = {row.status for row in db.query(Invoice).all()}
     assert statuses == {"pending_review", "needs_attention"}
 
 
-def test_unrecognised_capture_becomes_needs_attention(db: Session) -> None:
+def test_missing_required_fields_become_needs_attention(db: Session) -> None:
+    """Status follows required-field coverage: the full German invoice is
+    ready; the English one lacks a recognised date; the scan lacks all."""
     run_fixture_ingest(db)
-    attention = db.query(Invoice).filter(Invoice.status == "needs_attention").one()
-    assert attention.supplier_guess is None
+    missing = {
+        row.supplier_suggested: (row.status, row.missing_fields())
+        for row in db.query(Invoice).all()
+    }
+    assert missing == {
+        "Musterveu GmbH": ("pending_review", []),
+        "Licht & Ton Events KG": ("needs_attention", ["invoice_date"]),
+        None: ("needs_attention", ["supplier", "invoice_date", "gross"]),
+    }
+
+
+def test_queue_lists_open_invoices_attention_first(
+    client: TestClient, db: Session
+) -> None:
+    run_fixture_ingest(db)
+    items = client.get("/api/v1/queue", headers=_auth()).json()["items"]
+    assert [item["status"] for item in items] == [
+        "needs_attention",
+        "needs_attention",
+        "pending_review",
+    ]
+    ready = items[-1]
+    assert ready["missing_fields"] == []
+    assert ready["suggestions"]["supplier"] == "Musterveu GmbH"
+    assert ready["suggestions"]["gross"] == "1190.00"
 
 
 def test_oversized_capture_is_rejected_before_storage(
@@ -79,7 +109,7 @@ def test_oversized_capture_is_rejected_before_storage(
     monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(tmp_path))
     get_settings.cache_clear()
 
-    assert ingest_file(db, CapturedTestFile(b"x" * 11)) is False
+    assert ingest_file(db, _capture(b"x" * 11)) is False
     assert db.query(Invoice).count() == 0
     assert list(tmp_path.iterdir()) == []
 
@@ -235,11 +265,12 @@ def test_review_flow_confirm_with_corrections(client: TestClient, db: Session) -
     assert client.get("/api/v1/queue", headers=auth).json()["count"] == len(items) - 1
 
 
-def test_digest_lists_pending(db: Session) -> None:
+def test_digest_lists_open_invoices_with_missing_fields(db: Session) -> None:
     run_fixture_ingest(db)
     body = build_digest(db)
-    assert "review" in body
-    assert "Not recognised automatically" in body
+    assert "3 item(s) need review" in body
+    assert "Licht & Ton Events KG — missing invoice_date" in body
+    assert "(unknown supplier) — missing supplier, invoice_date, gross" in body
 
 
 def _age_file(path: Path, seconds: float) -> None:
@@ -312,7 +343,7 @@ def test_internal_original_serves_stored_capture(
     monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(mkdtemp()))
     get_settings.cache_clear()
     try:
-        assert ingest_file(db, CapturedTestFile(content))
+        assert ingest_file(db, _capture(content))
         invoice = db.query(Invoice).one()
         headers = {"Authorization": f"Bearer {get_settings().internal_token}"}
         response = client.get(
@@ -396,7 +427,7 @@ def test_one_failing_file_does_not_abort_the_run(
     try:
         # First fixture fails, the other two still land.
         assert run_fixture_ingest(db) == 2
-        # The watermark did not advance past the failure, so it is retried.
+        # The folder still offers the failed file, so the next run retries it.
         assert run_fixture_ingest(db) == 1
     finally:
         get_settings.cache_clear()
@@ -409,7 +440,7 @@ def test_duplicate_is_skipped_before_pdf_parsing(
     monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(tmp_path))
     get_settings.cache_clear()
     try:
-        capture = CapturedTestFile(b"%PDF-1.5 handwritten test capture")
+        capture = _capture(b"%PDF-1.5 handwritten test capture")
         assert ingest_file(db, capture) is True
 
         def no_parse(content: bytes) -> int:

@@ -80,15 +80,18 @@ services:
     volumes:
       - invoice-data:/app/data
       - ../invoice-service/data/inbox:/app/data/inbox
+      # Drive service-account key (gitignored); see invoice-service/README.md.
+      - ../invoice-service/secrets:/app/secrets:ro
       - ../invoice-service/app:/app/app
       - ../invoice-service/tests:/app/tests
       - ../invoice-service/alembic:/app/alembic
       - ../invoice-service/alembic.ini:/app/alembic.ini
       - ../invoice-service/pyproject.toml:/app/pyproject.toml
       - ../invoice-service/uv.lock:/app/uv.lock
-    # Review tokens and mail creds come from env when they exist (hard rule 4).
-    # Until Gmail/Drive credentials are present, ingestion degrades to fixture
-    # mode — see invoice-service/README.md.
+    # Tokens and mail creds come from env when they exist (hard rule 4).
+    # Import reads the Google Drive invoice folder when INVOICE_DRIVE_* are set
+    # in invoice-service/.env, otherwise the local inbox
+    # (invoice-service/data/inbox) — see invoice-service/README.md.
     command: ["sh", "-c", "uv run alembic upgrade head && uvicorn app.main:app --reload --host 0.0.0.0 --port 8081"]
 
 volumes:

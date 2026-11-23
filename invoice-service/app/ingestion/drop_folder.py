@@ -20,10 +20,10 @@ demonstration use.
 
 import logging
 import time
-from dataclasses import dataclass
+from collections.abc import Callable
 from pathlib import Path
 
-from app.ingestion.base import CapturedFile
+from app.ingestion.capture import CapturedFile
 
 log = logging.getLogger(__name__)
 
@@ -33,30 +33,33 @@ log = logging.getLogger(__name__)
 SETTLE_SECONDS = 5.0
 
 
-@dataclass(frozen=True)
-class DropFolderCapturedFile:
-    source: str
-    filename: str
-    content: bytes
-
-
 class DropFolderSource:
     name = "drop_folder"
 
-    def __init__(self, directory: str | Path, *, max_attachment_bytes: int) -> None:
+    def __init__(
+        self,
+        directory: str | Path,
+        *,
+        max_attachment_bytes: int,
+        settle_seconds: float = SETTLE_SECONDS,
+    ) -> None:
         self.directory = Path(directory)
         self.max_attachment_bytes = max_attachment_bytes
+        self.settle_seconds = settle_seconds
         # Previous observation (size, mtime_ns) per candidate path: a file
         # whose observation is unchanged between two polls is settled.
         self._observed: dict[Path, tuple[int, int]] = {}
 
-    def poll(self, cursor: str | None) -> tuple[list[CapturedFile], str]:
+    def poll(self, is_known: Callable[[str], bool] | None = None) -> list[CapturedFile]:
+        """Every settled file currently in the folder. Files stay in place,
+        so later polls offer them again; the pipeline dedupes by content
+        (`is_known` is accepted for symmetry with the invoice folder)."""
         files: list[CapturedFile] = []
         if not self.directory.is_dir():
             # The folder was removed or recreated: observations can no longer
             # refer to files in it.
             self._observed.clear()
-            return files, ""
+            return files
         now = time.time()
         for path in sorted(self.directory.iterdir()):
             if path.name.startswith("."):
@@ -79,10 +82,8 @@ class DropFolderSource:
             fingerprint = (stat.st_size, stat.st_mtime_ns)
             unchanged_since_last_poll = self._observed.get(path) == fingerprint
             self._observed[path] = fingerprint
-            settled = (
-                unchanged_since_last_poll or (now - stat.st_mtime) >= SETTLE_SECONDS
-            )
-            if not settled:
+            untouched_long_enough = now - stat.st_mtime >= self.settle_seconds
+            if not (unchanged_since_last_poll or untouched_long_enough):
                 continue
             try:
                 content = path.read_bytes()
@@ -90,10 +91,6 @@ class DropFolderSource:
                 log.warning("Drop-folder file vanished before read: %s", path.name)
                 continue
             files.append(
-                DropFolderCapturedFile(
-                    source=self.name,
-                    filename=path.name,
-                    content=content,
-                )
+                CapturedFile(source=self.name, filename=path.name, content=content)
             )
-        return files, ""
+        return files

@@ -1,11 +1,10 @@
-"""The ingest pipeline: hash de-duplication, storage, extraction to
-suggestions, and first-pass trust assessment. Everything produces review-queue
-rows — never exports, never sheet writes (hard rules 1 and 3).
+"""The ingest pipeline: content-hash de-duplication, storage, extraction to
+suggestions, and the open status. Everything produces review-queue rows —
+never exports, never sheet writes (hard rules 1 and 3).
 """
 
 import hashlib
 import logging
-from datetime import UTC, datetime
 from functools import lru_cache
 
 from sqlalchemy.exc import IntegrityError
@@ -14,85 +13,48 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.extraction import fields as field_parser
 from app.extraction import text as text_extractor
-from app.ingestion.base import CapturedFile
+from app.ingestion.capture import CapturedFile
+from app.ingestion.drive import DriveSource
 from app.ingestion.drop_folder import DropFolderSource
-from app.models.invoice import Invoice, SyncWatermark, attachment_path
+from app.models.invoice import Invoice, attachment_path
 
 log = logging.getLogger(__name__)
 
-# Stage 1 rollout threshold (README §Phase 0.5): humans confirm everything;
-# confident captures simply sort first in the review queue.
-AUTO_OK_THRESHOLD = 0.8
-
-
-def _status_for(consumed_fields: int, confidence: float) -> str:
-    """Stage-1 rollout: humans confirm everything. Low-confidence captures
-    carry a distinct status so the review UI can surface them first."""
-    if consumed_fields == 0 or confidence < 0.5:
-        return "needs_attention"
-    return "pending_review"
-
 
 def _document_text(content: bytes, max_pdf_pages: int) -> str:
-    """Text layer routing: PDF → embedded text; anything decodable as plain
-    UTF-8 text → itself; otherwise → OCR (photos/scans, ~50% per owner answer
-    #3). Empty/failed OCR simply yields no suggestions."""
+    """PDF → embedded text layer (OCR when it has none); UTF-8 text → itself;
+    anything else (photos/scans, ~50% per owner answer #3) → OCR. Empty or
+    failed OCR simply yields no suggestions."""
     if content.startswith(b"%PDF"):
         text = text_extractor.pdf_text(content, max_pages=max_pdf_pages)
         return text if text.strip() else text_extractor.ocr_text(content)
     try:
-        decoded = content.decode("utf-8")
+        return content.decode("utf-8")
     except UnicodeDecodeError:
         return text_extractor.ocr_text(content)
-    printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in decoded) / max(
-        len(decoded), 1
-    )
-    return decoded if printable >= 0.9 else text_extractor.ocr_text(content)
 
 
-def poll_sources(db: Session, sources: list) -> int:
-    """Run every configured source once: catch-up poll → dedupe → store →
-    extract → queue rows. Returns the number of NEW invoices captured.
-    Failures are isolated per source and per file: one broken channel or
-    one bad capture never blocks the others. A source whose run had a failed
-    file keeps its previous watermark, so that file is offered again on the
-    next run (already-ingested files dedupe by content hash)."""
+def import_from(db: Session, source: DriveSource | DropFolderSource) -> int:
+    """Poll an ingestion channel once and ingest every capture. Returns the
+    number of NEW invoices. One bad capture never blocks the others; because
+    both channels offer their files again on every poll, a failed file is
+    retried next run (already-ingested files dedupe by content). Channel-level
+    failures (Drive unreachable or refusing access) propagate to the caller."""
+
+    def is_known(md5: str) -> bool:
+        known = db.query(Invoice.id).filter(Invoice.content_md5 == md5).first()
+        return known is not None
+
     new_count = 0
-    for source in sources:
-        cursor_row = db.get(SyncWatermark, source.name)
-        cursor = cursor_row.cursor if cursor_row else None
+    for captured in source.poll(is_known):
         try:
-            captured, next_cursor = source.poll(cursor)
+            if ingest_file(db, captured):
+                new_count += 1
         except Exception:
-            log.exception("Source %s poll failed", source.name)
-            continue
-        failed = 0
-        for captured_file in captured:
-            try:
-                if ingest_file(db, captured_file):
-                    new_count += 1
-            except Exception:
-                db.rollback()
-                failed += 1
-                log.exception(
-                    "Ingest failed for %s from %s",
-                    captured_file.filename,
-                    source.name,
-                )
-        if failed:
-            log.warning(
-                "Source %s: %d file(s) failed; watermark not advanced",
-                source.name,
-                failed,
+            db.rollback()
+            log.exception(
+                "Ingest failed for %s from %s", captured.filename, captured.source
             )
-            continue
-        watermark = db.get(SyncWatermark, source.name) or SyncWatermark(
-            source=source.name
-        )
-        watermark.cursor = next_cursor
-        watermark.last_success_at = datetime.now(UTC).replace(tzinfo=None)
-        db.add(watermark)
-    db.commit()
     return new_count
 
 
@@ -105,17 +67,24 @@ def drop_folder_source(directory: str, max_attachment_bytes: int) -> DropFolderS
     return DropFolderSource(directory, max_attachment_bytes=max_attachment_bytes)
 
 
-def poll_drop_folder(db: Session) -> int:
-    """Import new files from the configured local demonstration inbox."""
+def import_invoices(db: Session) -> int:
+    """Import from the invoice folder when Drive is configured, otherwise
+    from the local inbox (development, tests, offline demos)."""
     settings = get_settings()
-    return poll_sources(
-        db, [drop_folder_source(settings.inbox_dir, settings.max_attachment_bytes)]
-    )
+    if settings.drive_folder_id and settings.drive_credentials_file:
+        source = DriveSource(
+            settings.drive_folder_id,
+            settings.drive_credentials_file,
+            max_attachment_bytes=settings.max_attachment_bytes,
+        )
+    else:
+        source = drop_folder_source(settings.inbox_dir, settings.max_attachment_bytes)
+    return import_from(db, source)
 
 
 def ingest_file(db: Session, captured: CapturedFile) -> bool:
-    """Store + extract one captured file. Returns False for duplicates
-    (same content hash channels never create review rows twice)."""
+    """Store + extract one capture. Returns False when it is skipped
+    (too large, too many pages, or a duplicate by content hash)."""
     settings = get_settings()
     content_size = len(captured.content)
     if content_size > settings.max_attachment_bytes:
@@ -131,7 +100,14 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
     # De-duplicate first: the drop folder keeps its files, so every later
     # import sees them again and must not re-parse them.
     content_hash = hashlib.sha256(captured.content).hexdigest()
-    if db.query(Invoice.id).filter(Invoice.content_hash == content_hash).first():
+    content_md5 = hashlib.md5(captured.content, usedforsecurity=False).hexdigest()
+    existing = db.query(Invoice).filter(Invoice.content_hash == content_hash).first()
+    if existing is not None:
+        if existing.content_md5 is None:
+            # Rows from before MD5 tracking learn it on first re-capture, so
+            # the invoice folder skips this file without downloading it again.
+            existing.content_md5 = content_md5
+            db.commit()
         log.info(
             "Duplicate capture skipped: %s (%s)", captured.filename, content_hash[:12]
         )
@@ -163,19 +139,16 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
         )
         text = text[: settings.max_extracted_text_chars]
 
-    extraction = field_parser.extract_fields(text)
-
     invoice = Invoice(
         source=captured.source,
+        source_ref=captured.source_ref,
         content_hash=content_hash,
+        content_md5=content_md5,
         extracted_text=text or None,
-        supplier_guess=extraction.supplier,
-        confidence=round(extraction.confidence, 2),
-        status=_status_for(len(extraction.fields), extraction.confidence),
     )
-    for fieldname, value in extraction.fields.items():
-        if fieldname in _GUARDED_FIELDS and isinstance(value, (int, float, str)):
-            setattr(invoice, f"{fieldname}_guess", value)
+    for fieldname, value in field_parser.extract_fields(text).items():
+        setattr(invoice, f"{fieldname}_suggested", value)
+    invoice.status = "needs_attention" if invoice.missing_fields() else "pending_review"
     db.add(invoice)
     try:
         db.commit()
@@ -187,25 +160,9 @@ def ingest_file(db: Session, captured: CapturedFile) -> bool:
         )
         return False
     log.info(
-        "Ingested %s from %s (confidence %.2f, status %s)",
+        "Ingested %s from %s (status %s)",
         captured.filename,
         captured.source,
-        extraction.confidence,
         invoice.status,
     )
     return True
-
-
-_GUARDED_FIELDS: frozenset[str] = frozenset(
-    {
-        "invoice_number",
-        "invoice_date",
-        "due_date",
-        "net",
-        "vat",
-        "gross",
-        "category",
-        "payment_method",
-        "description",
-    }
-)

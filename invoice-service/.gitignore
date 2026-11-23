@@ -15,3 +15,6 @@ data/
 
 # Files captured during manual runs
 attachments/
+
+# Service-account keys (Google Drive) — never commit
+secrets/
