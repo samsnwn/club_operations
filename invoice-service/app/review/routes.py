@@ -55,17 +55,21 @@ def current_reviewer(
     return reviewer[:MAX_REVIEWER_LENGTH] if reviewer else "backend"
 
 
-def queue(db: Session, status: str = "open") -> list[Invoice]:
+def queue(
+    db: Session, status: str = "open", limit: int | None = QUEUE_LIMIT
+) -> list[Invoice]:
     """Invoices in `status` ("open" = every open status): needs-attention
-    first, then oldest first. Shared by the API and the digest."""
+    first, then oldest first. `limit=None` returns every match, for callers
+    where a full count matters."""
     statuses = OPEN_STATUSES if status == "open" else (status,)
-    return (
+    query = (
         db.query(Invoice)
         .filter(Invoice.status.in_(statuses))
         .order_by(Invoice.status != "needs_attention", Invoice.created_at, Invoice.id)
-        .limit(QUEUE_LIMIT)
-        .all()
     )
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 
 def _serialise(invoice: Invoice) -> dict:
