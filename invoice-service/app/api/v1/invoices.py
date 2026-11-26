@@ -1,6 +1,7 @@
 """Internal invoice-service endpoints used by the main backend facade."""
 
 import threading
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -65,4 +66,25 @@ def original_file(
         media_type = "image/jpeg"
     elif header.startswith(b"RIFF") and header[8:12] == b"WEBP":
         media_type = "image/webp"
-    return FileResponse(path, media_type=media_type)
+    elif _is_text(path):
+        # Text captures (drop-folder fixtures) preview inline; served as an
+        # opaque download they made the review screen open a save dialog.
+        media_type = "text/plain; charset=utf-8"
+    # Captures are untrusted input: never let the browser sniff a different,
+    # active type out of them.
+    return FileResponse(
+        path, media_type=media_type, headers={"X-Content-Type-Options": "nosniff"}
+    )
+
+
+def _is_text(path: Path) -> bool:
+    """True when the whole file is UTF-8 without NUL bytes (captures are
+    size-capped at ingestion, so reading the file is bounded)."""
+    data = path.read_bytes()
+    if b"\x00" in data:
+        return False
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
