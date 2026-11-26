@@ -8,11 +8,12 @@ production.
 
 Compose file: `docker-compose.yml` (project name `blue-velvet`).
 
-    docker compose -f infra/docker-compose.yml up -d --build   # start all three services
+    docker compose -f infra/docker-compose.yml up -d --build   # start all services
     docker compose -f infra/docker-compose.yml logs -f         # follow output
     docker compose -f infra/docker-compose.yml down            # stop + remove containers (keep the database volume)
 
-All three services build from `dev` targets of their Dockerfiles.
+The three application services build from `dev` targets of their Dockerfiles;
+`proxy` runs the pinned upstream Caddy image.
 
 ### Fresh start (after `down -v`)
 
@@ -22,7 +23,8 @@ All three services build from `dev` targets of their Dockerfiles.
 2. `pnpm create-owner <username>` (repository root) — the wiped database has no
    accounts and there is no public registration. Prompts twice for a password
    (min. 12 characters).
-3. Sign in at http://localhost:5173; create further accounts from the Staff tab.
+3. Sign in at https://localhost (or http://localhost:5173); create further
+   accounts from the Staff tab.
 
 Migrations need a manual run only when a new revision arrives while the stack
 is already running: `pnpm migrate` (or restart the two Python services).
@@ -50,15 +52,65 @@ publish `:8081` at all.
 
 | Service | Build context | Port | Binds (hot reload) | Volumes |
 | --- | --- | --- | --- | --- |
-| `backend` | `backend/Dockerfile` — uv-based, `alembic upgrade head` runs at start | `:8080` | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `db-data:/data` (SQLite) |
-| `frontend` | `frontend/Dockerfile` — node:22 + pinned `pnpm@9.12.0` (corepack activate) | `:5173` | `src/`, `public/`, `index.html`, configs | `frontend-vite-cache` (Vite pre-bundle cache) |
+| `proxy` | image `caddy:2.11.9`, config `infra/Caddyfile` (`tls internal`) | `:443` (HTTPS), `:80` (redirects to HTTPS) | `Caddyfile` (read-only) | `caddy-data:/data` (local CA + certificates), `caddy-config:/config` |
+| `backend` | `backend/Dockerfile` — uv-based, `alembic upgrade head` runs at start; uvicorn `--proxy-headers --forwarded-allow-ips='*'` | `127.0.0.1:8080` | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `db-data:/data` (SQLite) |
+| `frontend` | `frontend/Dockerfile` — node:22 + pinned `pnpm@9.12.0` (corepack activate) | `127.0.0.1:5173` | `src/`, `public/`, `index.html`, configs | `frontend-vite-cache` (Vite pre-bundle cache) |
 | `invoice-service` | `invoice-service/Dockerfile` — uv-based + Tesseract, `alembic upgrade head` runs at start | `127.0.0.1:8081` (development only) | `app/`, `tests/`, `alembic/`, `pyproject.toml`, `uv.lock` | `invoice-data:/app/data` (SQLite + originals); `data/inbox` bind for the demo |
 
-Wiring: the browser talks only to `:5173` for the PWA and to `:8080` for the
-API (the Vite dev-server proxy, configured via `BACKEND_URL`, default
-`http://localhost:8080` on the host, `http://backend:8080` in compose, forwards
-`/api/*` same-origin). The invoice service is called only by the backend facade
-on the compose network. No CORS middleware is needed in dev.
+Wiring: phones and other LAN devices reach the stack only through Caddy on
+`:443` (`https://localhost`, `https://<PUBLIC_HOST>`); plain HTTP on `:80`
+redirects to HTTPS. Caddy sends `/api/*` straight to `backend:8080` and
+everything else, including the Vite HMR WebSocket, to `frontend:5173`. The
+backend and Vite ports are published on loopback only, which is why uvicorn may
+trust `X-Forwarded-*` from any peer: only Caddy and the host itself can reach
+it. On the host, `http://localhost:5173` still works as before: the Vite
+dev-server proxy (configured via `BACKEND_URL`, default `http://localhost:8080`
+on the host, `http://backend:8080` in compose) forwards `/api/*` same-origin.
+The invoice service is called only by the backend facade on the compose
+network. No CORS middleware is needed in dev.
+
+Known dev limitation: behind Docker Desktop (macOS) Caddy may see the Docker
+NAT gateway instead of the phone's address, so the per-address sign-in throttle
+can treat every LAN client as one address.
+
+### HTTPS for phones (dev)
+
+Service workers and PWA install need a secure origin, so phones use Caddy's
+HTTPS. Installing and testing the PWA on real phones has **not been verified
+yet**; the steps below are the intended setup.
+
+1. Set `PUBLIC_HOST` (optional; without it only `https://localhost` is
+   served):
+
+       cp infra/.env.example infra/.env   # then set PUBLIC_HOST=<this machine's LAN IP>
+
+   Use the LAN IP (for example `192.168.1.50`), not a `.local` name: Android
+   resolves `.local` names unreliably. After changing it, run
+   `docker compose -f infra/docker-compose.yml up -d` to recreate `proxy` and
+   `frontend`.
+2. Start the stack (`pnpm dev:up`), then export Caddy's root certificate from
+   the repository root:
+
+       pnpm dev-ca   # writes infra/dev-ca/root.crt (gitignored)
+
+3. Trust `infra/dev-ca/root.crt` on each device:
+   - **macOS:** open it in Keychain Access, add it to the System keychain and
+     set it to Always Trust, or run
+     `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain infra/dev-ca/root.crt`.
+   - **iOS:** send the file to the device (AirDrop or mail), install the
+     downloaded profile under Settings, then turn on full trust under
+     Settings → General → About → Certificate Trust Settings.
+   - **Android:** install it as a CA certificate under Settings → Security
+     (or Encryption & credentials) → Install a certificate → CA certificate.
+4. Open `https://<PUBLIC_HOST>` on the phone.
+
+The certificate authority lives in the `caddy-data` volume, so it survives
+`down`/`up` and restarts. `pnpm dev:clean` (`down -v`) wipes it: Caddy creates a
+new authority on the next start, and every device must re-trust the new root
+(run `pnpm dev-ca` again). `SESSION_COOKIE_SECURE` stays false in dev.
+
+A real domain later means swapping `tls internal` for a DNS-01 issuer in
+`infra/Caddyfile` only; nothing else in the stack changes.
 
 Data discipline:
 
@@ -98,9 +150,10 @@ Reuse of the same images at `prod` targets is the roadmap:
    `uv sync --frozen --no-dev`; plain uvicorn, no reload.
 3. **Frontend prod target**: static PWA build (`pnpm run build`) baked into
    the image; content served by the reverse proxy, not by node.
-4. **Single origin with HTTPS at the edge**: a reverse proxy (Caddy or nginx —
-   both supported, decision open) terminates TLS and serves the PWA plus
-   `/api/*` from one origin. This replaces the Vite dev proxy entirely; there
+4. **Single origin with HTTPS at the edge**: a reverse proxy terminates TLS
+   and serves the PWA plus `/api/*` from one origin. Dev already does this
+   with Caddy and `tls internal`; the production proxy (Caddy or nginx) and
+   certificate scheme are still open. This replaces the Vite dev proxy entirely; there
    is no `api.example.com` split origin.
 5. **Migrations as a deploy step, not image startup**: production deployment
    runs `alembic upgrade head` before the new server takes traffic, so schema
@@ -155,8 +208,8 @@ Open decisions, gated on the Phase 0 owner answers (README §Phase 0):
 
 - Host runtime: Docker Desktop vs Linux daemon on club hardware (affects the
   production compose details only).
-- Reverse proxy choice (Caddy vs nginx) and HTTPS scheme: LAN-only vs public
-  domain. If club data must never leave the building, a public domain is out.
+- Production reverse proxy (dev uses Caddy; Caddy vs nginx for production is
+  open) and HTTPS scheme: LAN-only vs public domain. If club data must never leave the building, a public domain is out.
 - Production packaging and network policy for the Phase 0.5 invoice service:
   it already runs as its own container in development, but production must not
   publish `:8081`, and the scheduler/single-run lock still needs a home.
