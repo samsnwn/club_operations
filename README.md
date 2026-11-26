@@ -611,6 +611,17 @@ Uploaded documents must be treated as untrusted content. Their contents must nev
 
 The application should also be designed with relevant German and EU data protection requirements in mind.
 
+### Role permissions (developer decision, 2026-11-26)
+
+The three internal roles (`owner`, `admin`, `staff`) follow one rule: **staff can see everything except finance, and cannot edit event information**. Owners and administrators can see and edit everything.
+
+- **Finance** is hidden from staff: invoices today; budgets, expenses and supplier prices or costs as those modules arrive. The backend withholds finance data from staff responses (including budget fields on an event); hiding it in the interface alone is not enough.
+- **Events:** staff can view every event and all of its non-finance information (times, line-up, promoter details, technical requirements, documents) but cannot create, edit or cancel events.
+- **Staff actions** are allowed in their own right and do not count as editing events: submitting post-event stock counts and flagging products for urgent replacement (§2B).
+- **Account management** stays with owners and administrators: owners manage every account, administrators manage staff accounts only, and staff change only their own password.
+
+Permissions are defined once in the backend as named actions mapped to roles (for example `events.view`, `events.edit`, `finance.view`, `invoices.review`, `staff.manage`, `stock.count`); routes check actions rather than role names, and the frontend receives the signed-in user's permitted actions instead of duplicating the rules. Important operations are recorded in an append-only activity log (who, what, which record, when).
+
 ---
 
 ## 7. Access and Hosting

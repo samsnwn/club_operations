@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 
 ## [2026-11-26]
 
+### Planning
+- README §6 records the role-permission rule (developer decision): staff see
+  everything except finance (invoices now; budgets, expenses and supplier
+  costs later) and cannot edit events; stock counts and urgent-replacement
+  flags are staff actions; account management stays with owners and
+  administrators. Permissions are to be named actions defined once in the
+  backend, with an append-only activity log. Not implemented yet.
+
 ### Added
 - URL routing with TanStack Router (issue #13): every screen has a URL —
   `/login`, `/` (owner/admin land on `/invoices`, staff on `/account`),
