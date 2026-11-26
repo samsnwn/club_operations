@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -11,6 +12,11 @@ export default defineConfig(() => {
 
   return {
     plugins: [
+      // Generates src/routeTree.gen.ts from src/routes/; must come before react().
+      tanstackRouter({
+        target: 'react',
+        autoCodeSplitting: true,
+      }),
       react(),
       tailwindcss(),
       VitePWA({
