@@ -1,5 +1,5 @@
 // Route screens. Each wraps an existing component with the session it needs;
-// router.tsx decides which one shows.
+// the route files in src/routes/ decide which one shows.
 
 import { Link, useNavigate } from '@tanstack/react-router';
 

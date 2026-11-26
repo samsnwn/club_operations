@@ -1,5 +1,5 @@
 // Session state shared from App with the routed screens. The guards in
-// router.tsx read the user from router context; screens read it from here.
+// src/routes/ read the user from router context; screens read it from here.
 
 import { createContext, useContext } from 'react';
 
