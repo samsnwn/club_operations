@@ -32,7 +32,7 @@ The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs
 frontend/   React + TypeScript + Vite PWA (auth, staff panel, invoice review; no platform modules yet)
 backend/    FastAPI backend, /api/v1 (health, auth/users, invoice facade; no domain modules yet)
 invoice-service/  Phase 0.5 invoice service (FastAPI + SQLite; Drive invoice folder + local inbox ingestion and review queue wired; Sheets export stubbed; scheduler not started)
-infra/      Docker Compose dev stack (backend :8080, frontend :5173, invoice-service :8081), HTTPS setup to come
+infra/      Docker Compose dev stack (Caddy dev HTTPS :443, loopback-only backend :8080, frontend :5173, invoice-service :8081); production overrides to come
 factory/    software factory: checks.sh, config, job/gate/route scripts, dashboard (jobs/ is gitignored runtime state)
 .claude/    factory orchestrator skill and agents
 docs/       architecture, design system, milestones, next steps
@@ -48,11 +48,12 @@ CHANGE_LOG.md   chronological change log
 Development (Docker Compose; run from the repository root — this is the primary dev path):
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d --build   # start backend :8080 + frontend :5173 (hot reload, migrations on startup, SQLite in a named volume)
+docker compose -f infra/docker-compose.yml up -d --build   # start backend :8080 + frontend :5173 (hot reload, migrations on startup, SQLite in a named volume) behind Caddy: https://localhost and https://<PUBLIC_HOST> (infra/.env)
 docker compose -f infra/docker-compose.yml logs -f         # follow both servers' output
 docker compose -f infra/docker-compose.yml exec backend uv run alembic revision --autogenerate -m "<message>"  # new schema revision
 docker compose -f infra/docker-compose.yml down            # stop and remove containers (keep the database volume; add -v to wipe it)
 pnpm create-owner <username>                               # first owner after a fresh start (stack running; prompts for the password)
+pnpm dev-ca                                                # export Caddy's dev root certificate to infra/dev-ca/root.crt (trust it on devices; see infra/README.md)
 ```
 
 Optional per-service overrides (gitignored; Compose injects them via `env_file`):
