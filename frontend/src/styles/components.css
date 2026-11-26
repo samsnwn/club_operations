@@ -264,6 +264,8 @@
   }
 
   .nav-tab {
+    display: inline-flex;
+    align-items: center;
     min-height: 2.5rem;
     padding: 0.5rem 0.875rem;
     border: 0;
@@ -274,6 +276,7 @@
     font-weight: 600;
     font-size: 0.9375rem;
     white-space: nowrap;
+    text-decoration: none;
     cursor: pointer;
     transition: background-color 160ms var(--ease-velvet);
   }
