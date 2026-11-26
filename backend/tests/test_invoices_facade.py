@@ -278,3 +278,5 @@ def test_original_streamed_inline(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.content == pdf
     assert response.headers["content-type"] == "application/pdf"
     assert response.headers["content-disposition"] == "inline"
+    # Captures are untrusted: the browser must not second-guess the type.
+    assert response.headers["x-content-type-options"] == "nosniff"

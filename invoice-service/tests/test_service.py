@@ -336,10 +336,24 @@ def test_internal_original_unknown_invoice(client: TestClient) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("content", "media_type"),
+    [
+        (b"%PDF-1.5 handwritten test capture", "application/pdf"),
+        # Text captures (drop-folder fixtures) preview inline instead of
+        # triggering a download.
+        ("Lichtwerk GmbH\nGesamt: 1.190,00 €\n".encode(), "text/plain; charset=utf-8"),
+        # Anything unrecognised stays an opaque download.
+        (b"\x00\x01\x02\xff\xfe not a known format", "application/octet-stream"),
+    ],
+)
 def test_internal_original_serves_stored_capture(
-    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+    client: TestClient,
+    db: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    content: bytes,
+    media_type: str,
 ) -> None:
-    content = b"%PDF-1.5 handwritten test capture"
     monkeypatch.setenv("INVOICE_ATTACHMENTS_DIR", str(mkdtemp()))
     get_settings.cache_clear()
     try:
@@ -351,7 +365,8 @@ def test_internal_original_serves_stored_capture(
         )
         assert response.status_code == 200
         assert response.content == content
-        assert response.headers["content-type"] == "application/pdf"
+        assert response.headers["content-type"] == media_type
+        assert response.headers["x-content-type-options"] == "nosniff"
     finally:
         get_settings.cache_clear()
 

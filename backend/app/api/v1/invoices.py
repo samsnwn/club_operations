@@ -140,7 +140,9 @@ async def invoice_original(invoice_id: int, user: InvoiceReviewer) -> Response:
     return Response(
         content=response.content,
         media_type=response.headers.get("content-type"),
-        headers={"Content-Disposition": "inline"},
+        # Captures are untrusted: show them inline, never let the browser
+        # sniff a different (active) type out of them.
+        headers={"Content-Disposition": "inline", "X-Content-Type-Options": "nosniff"},
     )
 
 
