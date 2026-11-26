@@ -76,8 +76,8 @@ can treat every LAN client as one address.
 ### HTTPS for phones (dev)
 
 Service workers and PWA install need a secure origin, so phones use Caddy's
-HTTPS. Installing and testing the PWA on real phones has **not been verified
-yet**; the steps below are the intended setup.
+HTTPS. Verified on an iPhone (2026-11-26): the app installs to the home screen
+and opens full-screen. Android is not verified yet.
 
 1. Set `PUBLIC_HOST` (optional; without it only `https://localhost` is
    served):
@@ -102,7 +102,16 @@ yet**; the steps below are the intended setup.
      Settings → General → About → Certificate Trust Settings.
    - **Android:** install it as a CA certificate under Settings → Security
      (or Encryption & credentials) → Install a certificate → CA certificate.
-4. Open `https://<PUBLIC_HOST>` on the phone.
+4. Open `https://<PUBLIC_HOST>` on the phone and sign in.
+5. Install it:
+   - **iOS:** use **Safari** (Brave and other browsers on iOS don't offer a
+     proper install). Share → Add to Home Screen → Add; on iOS 26 the Share
+     button sits behind the ⋯ button next to the address bar.
+   - **Android:** Chrome menu → Add to Home screen / Install app.
+
+Bare IP addresses carry no TLS SNI, so the Caddyfile sets `default_sni` to
+`PUBLIC_HOST`; without it the handshake to `https://<LAN IP>` fails with an
+internal-error alert while `https://localhost` still works.
 
 The certificate authority lives in the `caddy-data` volume, so it survives
 `down`/`up` and restarts. `pnpm dev:clean` (`down -v`) wipes it: Caddy creates a

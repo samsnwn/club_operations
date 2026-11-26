@@ -30,6 +30,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   sign-in throttle see the client's scheme and address behind the proxy.
 - Vite accepts `PUBLIC_HOST` as an allowed host when it is set.
 
+### Fixed
+- HTTPS to the LAN IP failed the TLS handshake (bare IPs send no SNI, so Caddy
+  could not pick a certificate). The Caddyfile now sets `default_sni` to
+  `PUBLIC_HOST` (falling back to `localhost`). With it, the PWA was installed
+  and opened on an iPhone; `infra/README.md` now notes that iOS installs need
+  Safari. Android is not verified yet.
+
 ## [2026-11-23]
 
 ### Added
