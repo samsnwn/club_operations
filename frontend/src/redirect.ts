@@ -17,7 +17,11 @@ export function safeRedirect(value: unknown): string {
     }
   }
   try {
-    if (new URL(value, BASE).origin !== BASE) return '/';
+    const url = new URL(value, BASE);
+    if (url.origin !== BASE) return '/';
+    // Dot segments can collapse into `//host` (e.g. `/..//evil.com`), which
+    // a later consumer could read as protocol-relative.
+    if (url.pathname.startsWith('//')) return '/';
   } catch {
     return '/';
   }
