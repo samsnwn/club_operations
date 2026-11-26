@@ -15,7 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   visitors to `/login?redirect=<path>`, and the owner/admin guard sends staff
   to `/account` before those screens render. After sign-in the `redirect`
   value goes through `src/redirect.ts` (`safeRedirect`), which accepts only
-  same-origin paths. The nav tabs are links with `aria-current` from the
+  same-origin paths (values whose resolved path starts with `//`, such as
+  `/..//host`, fall back to `/`). The nav tabs are links with `aria-current` from the
   active route. `View` state in `App.tsx` is gone; the session check, offline
   screen and forced password change work as before. `tsconfig.app.json` now
   enables `strictNullChecks`, which the router's types require. Hand checks on

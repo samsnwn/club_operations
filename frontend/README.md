@@ -91,8 +91,9 @@ back gesture never lands on a redirecting entry):
 - Staff on `/invoices` or `/staff` → `/account`; those screens never render.
 - Signed in on `/login` → the `redirect` value when `safeRedirect` accepts it,
   otherwise `/`. Only paths starting with a single `/` (no `\`, control
-  characters or whitespace, same origin) are accepted, so `?redirect=` can't
-  send anyone to another site.
+  characters or whitespace, same origin, and not resolving to a `//…` path
+  such as `/..//host`) are accepted, so `?redirect=` can't send anyone to
+  another site.
 - Sign out → `/login` with no `redirect`.
 
 Check the validator with Node (no test runner; run from `frontend/`):
