@@ -49,8 +49,17 @@ system font.
 - `src/connectivity.ts` — online/offline state fed by `request()` and the
   browser's `online`/`offline` events, read with `useOnline()`.
 - `src/auth.ts` — typed auth/user calls.
-- `src/App.tsx` — session shell: checking → login → forced password change →
-  role-aware views (invoices / staff / password / staff home).
+- `src/App.tsx` — session check (checking → offline screen or router) and the
+  session state (user, sign-out) shared with the routes through
+  `src/session.ts`.
+- `src/router.tsx` — the route tree and every access guard, defined in code
+  with TanStack Router (no file-based routing, no generated tree).
+- `src/redirect.ts` — `safeRedirect`, the dependency-free validator for the
+  `?redirect=` value after sign-in.
+- `src/AppShell.tsx` — signed-in layout: forced password change, or the header,
+  nav tabs and page header around the current screen.
+- `src/screens.tsx` — the route screens (login, invoices, staff, account,
+  password, not found).
 - `src/Login.tsx`, `src/ChangePassword.tsx` — sign-in and password flow.
 - `src/StaffPanel.tsx` — account management (owner/admin).
 - `src/InvoiceWorkspace.tsx` — import, review queue, corrections,
@@ -63,6 +72,37 @@ system font.
   and the offline bar and screen (`Offline.tsx`).
 - `src/App.css` — screen layouts only.
 
+## Routes
+
+| Path                | Who                 | Screen                                                         |
+| ------------------- | ------------------- | -------------------------------------------------------------- |
+| `/login`            | Signed out          | Sign in                                                        |
+| `/`                 | Signed in           | Redirects owner/admin to `/invoices`, staff to `/account`      |
+| `/invoices`         | Owner, admin        | Invoice review                                                 |
+| `/staff`            | Owner, admin        | Internal accounts                                              |
+| `/account`          | Signed in           | Your account (empty state)                                     |
+| `/account/password` | Signed in           | Change password; a successful change returns to `/`            |
+| any other path      | Anyone              | Not-found page with a link to `/`                              |
+
+Redirect rules (all in `src/router.tsx`, `beforeLoad`, with `replace` so the
+back gesture never lands on a redirecting entry):
+
+- Signed out on any signed-in route → `/login?redirect=<path and query>`.
+- Staff on `/invoices` or `/staff` → `/account`; those screens never render.
+- Signed in on `/login` → the `redirect` value when `safeRedirect` accepts it,
+  otherwise `/`. Only paths starting with a single `/` (no `\`, control
+  characters or whitespace, same origin) are accepted, so `?redirect=` can't
+  send anyone to another site.
+- Sign out → `/login` with no `redirect`.
+
+Check the validator with Node (no test runner; run from `frontend/`):
+
+```bash
+node --input-type=module -e "import { safeRedirect as s } from './src/redirect.ts'; const cases = [['/invoices','/invoices'],['/account/password','/account/password'],['/staff?x=1','/staff?x=1'],[undefined,'/'],['','/'],['https://example.com','/'],['//example.com','/'],['/\\\\example.com','/'],['\\\\\\\\example.com','/'],['\\\\/example.com','/'],['javascript:alert(1)','/'],['invoices','/'],[' /invoices','/'],['/%0a','/%0a'],[42,'/']]; for (const [i,o] of cases) { if (s(i)!==o) { console.error('FAIL', JSON.stringify(i), s(i)); process.exit(1); } } console.log('ok');"
+```
+
+It prints `ok`.
+
 ## Styling
 
 Follow [`../docs/design-system.md`](../docs/design-system.md). Compose screens
@@ -73,12 +113,15 @@ desktop widths. Fonts are bundled via Fontsource; do not add a font CDN.
 
 ## Access behaviour
 
+- Access is enforced by URL guards in `src/router.tsx` (see Routes), which
+  re-run whenever the signed-in user changes.
 - `owner` and `admin` see the invoice workspace and staff panel.
-- `staff` can sign in and change their own password only; they land on a
-  no-modules home and never receive invoice data.
+- `staff` can sign in and change their own password only; they land on
+  `/account` and are redirected there from `/invoices` and `/staff`, so they
+  never receive invoice data.
 - Accounts flagged `must_change_password` are forced through
-  `ChangePassword` before any normal view.
-- Expired/invalid sessions return to the login screen.
+  `ChangePassword` at any URL; after the change the URL renders normally.
+- Expired/invalid sessions return to `/login?redirect=<current page>`.
 
 ## Offline behaviour
 
@@ -89,8 +132,9 @@ desktop widths. Fonts are bundled via Fontsource; do not add a font CDN.
 - If the startup session check can't reach the server, a "You're offline"
   screen with Retry replaces the sign-in page.
 
-Navigation is still local React state, not URL routing. There is no offline
+Deep links open offline too: the service worker answers navigations with the
+app shell (navigations to `/api/` excluded) and the router renders the URL.
+There is no offline
 data: nothing is cached from the API and there is no IndexedDB queue. The
-service worker precaches the app shell and icons only (navigations to `/api/`
-are never answered with the shell), and the offline indicator only reports
-connectivity.
+service worker precaches the app shell and icons only, and the offline
+indicator only reports connectivity.
