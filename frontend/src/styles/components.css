@@ -466,6 +466,12 @@
     border-left-color: var(--bv-accent);
   }
 
+  .alert-warning {
+    background: var(--bv-warning-soft);
+    color: var(--bv-fg);
+    border-left-color: var(--bv-warning);
+  }
+
   /* --------------------------------------------------- Confidence meter */
 
   .meter {

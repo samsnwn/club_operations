@@ -1,5 +1,7 @@
 // Small API client: same-origin fetch, typed JSON, explicit HTTP errors.
 
+import { setOnline } from './connectivity';
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -12,9 +14,11 @@ export class ApiError extends Error {
 
 // True when the request never got a usable answer: fetch rejected (network
 // failure) or a gateway reported the backend as unavailable.
+const UNREACHABLE_STATUSES = [502, 503, 504];
+
 export function isServerUnreachable(error: unknown): boolean {
   if (error instanceof ApiError) {
-    return [502, 503, 504].includes(error.status);
+    return UNREACHABLE_STATUSES.includes(error.status);
   }
   return error instanceof TypeError;
 }
@@ -51,10 +55,18 @@ export async function request<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`/api/v1${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+  } catch (error) {
+    if (isServerUnreachable(error)) setOnline(false);
+    throw error;
+  }
+  // Any answer except a gateway error proves the server is reachable.
+  setOnline(!UNREACHABLE_STATUSES.includes(response.status));
   if (!response.ok) {
     throw new ApiError(response.status, await errorMessage(response));
   }

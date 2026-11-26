@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import './App.css';
-import { ApiError } from './api';
+import { ApiError, isServerUnreachable } from './api';
 import { logout, me, type CurrentUser } from './auth';
 import { ChangePassword } from './ChangePassword';
+import { useOnline } from './connectivity';
 import { InvoiceWorkspace } from './InvoiceWorkspace';
 import { Login } from './Login';
 import { StaffPanel } from './StaffPanel';
 import { Crest, Sign, Wordmark } from './ui/Brand';
+import { OfflineBar, OfflineScreen } from './ui/Offline';
 import { ThemeToggle } from './ui/ThemeToggle';
 
 type View = 'invoices' | 'staff' | 'password';
@@ -18,25 +20,40 @@ function App() {
   const [checking, setChecking] = useState(true);
   const [view, setView] = useState<View>('invoices');
   const [notice, setNotice] = useState('');
+  const [unreachable, setUnreachable] = useState(false);
+  const online = useOnline();
 
-  useEffect(() => {
-    let active = true;
+  const runSessionCheck = useCallback((isActive: () => boolean) => {
     me()
       .then((current) => {
-        if (active) setUser(current);
+        if (isActive()) setUser(current);
       })
       .catch((caught: unknown) => {
-        if (active && !(caught instanceof ApiError && caught.status === 401)) {
+        if (!isActive()) return;
+        if (isServerUnreachable(caught)) {
+          setUnreachable(true);
+        } else if (!(caught instanceof ApiError && caught.status === 401)) {
           setNotice('Unable to check the session. Please reload the page.');
         }
       })
       .finally(() => {
-        if (active) setChecking(false);
+        if (isActive()) setChecking(false);
       });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    runSessionCheck(() => active);
     return () => {
       active = false;
     };
-  }, []);
+  }, [runSessionCheck]);
+
+  const retrySessionCheck = () => {
+    setUnreachable(false);
+    setChecking(true);
+    runSessionCheck(() => true);
+  };
 
   const refreshSession = useCallback(async () => {
     try {
@@ -67,6 +84,14 @@ function App() {
         <p className="status" role="status">
           Checking session…
         </p>
+      </main>
+    );
+  }
+
+  if (!user && unreachable) {
+    return (
+      <main className="auth-layout">
+        <OfflineScreen onRetry={retrySessionCheck} />
       </main>
     );
   }
@@ -133,6 +158,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      {!online && <OfflineBar />}
       <Sign className="app-sign">
         <div className="app-sign-brand">
           <Crest />
