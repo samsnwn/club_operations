@@ -51,6 +51,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   `PUBLIC_HOST` (falling back to `localhost`). With it, the PWA was installed
   and opened on an iPhone; `infra/README.md` now notes that iOS installs need
   Safari. Android is not verified yet.
+- Opening an invoice whose original is a text capture (drop-folder fixtures)
+  triggered a download dialog, because the invoice service served anything
+  that is not PDF/PNG/JPEG/WebP as `application/octet-stream`. UTF-8 text
+  captures are now served as `text/plain; charset=utf-8` and preview inline;
+  unrecognised binaries stay a download. Both the invoice service and the
+  backend facade add `X-Content-Type-Options: nosniff` to originals (captures
+  are untrusted input).
 
 ## [2026-11-23]
 
