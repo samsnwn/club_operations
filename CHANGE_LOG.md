@@ -7,6 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 ## [2026-11-26]
 
 ### Added
+- PWA install icons generated from `frontend/public/favicon.svg` with
+  `@vite-pwa/assets-generator` (`minimal-2023` preset, Night background):
+  `pwa-192x192.png`, `pwa-512x512.png`, `maskable-icon-512x512.png` and
+  `apple-touch-icon-180x180.png`, committed and regenerated with
+  `pnpm run generate-pwa-assets`. The manifest lists them (the maskable one
+  with `purpose: maskable`) and `index.html` links the Apple touch icon.
+- An offline indicator: `src/connectivity.ts` tracks reachability from
+  `request()` and the browser's `online`/`offline` events; the signed-in shell
+  shows a persistent "Offline – changes can't be saved…" bar (new
+  `.alert-warning` primitive), and a startup session check that can't reach
+  the server shows a "You're offline" screen with Retry instead of the session
+  error. Reinstalling on the iPhone, airplane mode and a cold start offline are
+  not yet verified by hand; URL routing (issue #11) is still to do.
 - Dev HTTPS through a Caddy reverse proxy: a `proxy` service (`caddy:2.11.9`,
   `infra/Caddyfile`, `tls internal`) serves `https://localhost` and, when
   `PUBLIC_HOST` is set in the optional `infra/.env` (template
@@ -22,6 +35,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
   `X-Forwarded-For`.
 
 ### Changed
+- The service worker keeps its navigation fallback to `index.html` but no
+  longer serves it for `/api/` paths (`navigateFallbackDenylist`).
 - The dev compose publishes the backend (`127.0.0.1:8080`) and Vite
   (`127.0.0.1:5173`) on loopback only; the LAN reaches the stack only through
   Caddy. `http://localhost:5173` keeps working on the host.
