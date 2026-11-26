@@ -15,7 +15,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg'],
+        includeAssets: ['favicon.svg', 'apple-touch-icon-180x180.png'],
         manifest: {
           name: 'Blue Velvet',
           short_name: 'Velvet',
@@ -30,7 +30,30 @@ export default defineConfig(() => {
               type: 'image/svg+xml',
               purpose: 'any',
             },
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: 'maskable-icon-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
           ],
+        },
+        workbox: {
+          // Navigations still fall back to index.html, but never for /api:
+          // API paths must reach the server (or fail) instead of the shell.
+          navigateFallbackDenylist: [/^\/api\//],
         },
       }),
     ],
