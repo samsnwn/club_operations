@@ -10,9 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 - URL routing with TanStack Router (issue #13): every screen has a URL —
   `/login`, `/` (owner/admin land on `/invoices`, staff on `/account`),
   `/invoices`, `/staff`, `/account`, `/account/password` and a not-found page.
-  Routes and guards are defined in code in `frontend/src/router.tsx` (no
-  file-based routing, no generated tree); a pathless layout sends signed-out
-  visitors to `/login?redirect=<path>`, and the owner/admin guard sends staff
+  Routes use file-based routing: one file per route under
+  `frontend/src/routes/`, with the TanStack Router Vite plugin
+  (`@tanstack/router-plugin`, `autoCodeSplitting`) generating
+  `src/routeTree.gen.ts`, which is committed and excluded from Prettier and
+  ESLint. A pathless `_authenticated` layout sends signed-out
+  visitors to `/login?redirect=<path>`, and the `_manager` guard sends staff
   to `/account` before those screens render. After sign-in the `redirect`
   value goes through `src/redirect.ts` (`safeRedirect`), which accepts only
   same-origin paths (values whose resolved path starts with `//`, such as
