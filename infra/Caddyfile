@@ -7,6 +7,14 @@
 # just `localhost`. No trusted proxies are set, so client-sent X-Forwarded-*
 # headers are discarded and Caddy sets them from the real connection. Plain
 # HTTP on :80 redirects to HTTPS automatically.
+{
+	# Clients send no SNI when connecting to a bare IP (PUBLIC_HOST), so Caddy
+	# needs a default to pick the IP's certificate; without it the handshake
+	# fails with an internal-error alert. DEFAULT_SNI comes from compose
+	# (PUBLIC_HOST, or localhost when that is empty).
+	default_sni {$DEFAULT_SNI}
+}
+
 localhost {$PUBLIC_HOST} {
 	tls internal
 

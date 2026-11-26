@@ -110,6 +110,9 @@ services:
     environment:
       # Optional LAN IP from infra/.env; empty serves localhost only.
       PUBLIC_HOST: ${PUBLIC_HOST:-}
+      # Certificate for clients that send no SNI (bare IPs): the LAN IP when
+      # set, otherwise localhost. Never empty, or Caddy rejects the config.
+      DEFAULT_SNI: ${PUBLIC_HOST:-localhost}
     depends_on:
       - backend
       - frontend
