@@ -1,0 +1,19 @@
+# Dev HTTPS entry point for the compose stack (proxy service). Caddy's own
+# local authority issues the certificates (`tls internal`); export its root
+# with `pnpm dev-ca` and trust it on each device (infra/README.md). A real
+# domain later means replacing `tls internal` with a DNS-01 issuer here.
+#
+# Addresses are space-separated so an empty PUBLIC_HOST (infra/.env) leaves
+# just `localhost`. No trusted proxies are set, so client-sent X-Forwarded-*
+# headers are discarded and Caddy sets them from the real connection. Plain
+# HTTP on :80 redirects to HTTPS automatically.
+localhost {$PUBLIC_HOST} {
+	tls internal
+
+	# API straight to the backend, so its same-origin guard sees the original
+	# Host; Vite's /api proxy rewrites it (changeOrigin).
+	reverse_proxy /api/* backend:8080
+
+	# Everything else, including the Vite HMR WebSocket.
+	reverse_proxy frontend:5173
+}

@@ -7,6 +7,7 @@
     "dev:clean": "docker compose -f infra/docker-compose.yml down -v",
     "dev:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "dev:config": "docker compose -f infra/docker-compose.yml config --quiet",
+    "dev-ca": "mkdir -p infra/dev-ca && docker compose -f infra/docker-compose.yml cp proxy:/data/caddy/pki/authorities/local/root.crt infra/dev-ca/root.crt",
     "migrate": "docker compose -f infra/docker-compose.yml exec backend uv run alembic upgrade head && docker compose -f infra/docker-compose.yml exec invoice-service uv run alembic upgrade head",
     "create-owner": "docker compose -f infra/docker-compose.yml exec backend uv run python -m app.cli create-user --role owner --username",
     "lint": "pnpm --dir frontend run lint && uv run --directory backend ruff check . && uv run --directory invoice-service ruff check .",

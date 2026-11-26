@@ -13,3 +13,6 @@ node_modules/
 # Software factory runtime state and per-job worktrees
 /factory/jobs/
 /.worktrees/
+
+# Dev HTTPS root certificate exported by `pnpm dev-ca` (per machine)
+infra/dev-ca/

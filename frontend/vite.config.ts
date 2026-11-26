@@ -5,6 +5,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   const backendURL = process.env.BACKEND_URL ?? 'http://localhost:8080';
+  // LAN address served by the dev HTTPS proxy (infra/.env); Vite rejects
+  // unknown hostnames, while localhost and IPs stay allowed by default.
+  const publicHost = process.env.PUBLIC_HOST;
 
   return {
     plugins: [
@@ -32,6 +35,7 @@ export default defineConfig(() => {
       }),
     ],
     server: {
+      ...(publicHost ? { allowedHosts: [publicHost] } : {}),
       proxy: {
         // In dev, forward same-origin /api requests to the FastAPI backend.
         // No rewrite: the backend paths already start with /api.
