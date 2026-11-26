@@ -7,6 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 ## [2026-11-26]
 
 ### Added
+- URL routing with TanStack Router (issue #13): every screen has a URL —
+  `/login`, `/` (owner/admin land on `/invoices`, staff on `/account`),
+  `/invoices`, `/staff`, `/account`, `/account/password` and a not-found page.
+  Routes use file-based routing: one file per route under
+  `frontend/src/routes/`, with the TanStack Router Vite plugin
+  (`@tanstack/router-plugin`, `autoCodeSplitting`) generating
+  `src/routeTree.gen.ts`, which is committed and excluded from Prettier and
+  ESLint. A pathless `_authenticated` layout sends signed-out
+  visitors to `/login?redirect=<path>`, and the `_manager` guard sends staff
+  to `/account` before those screens render. After sign-in the `redirect`
+  value goes through `src/redirect.ts` (`safeRedirect`), which accepts only
+  same-origin paths (values whose resolved path starts with `//`, such as
+  `/..//host`, fall back to `/`). The nav tabs are links with `aria-current` from the
+  active route. `View` state in `App.tsx` is gone; the session check, offline
+  screen and forced password change work as before. `tsconfig.app.json` now
+  enables `strictNullChecks`, which the router's types require. Hand checks on
+  the dev stack and iPhone (owner and staff URLs, reload and back/forward in
+  the installed PWA, deep link through login, redirect rejection, not-found)
+  are still pending.
 - PWA install icons generated from `frontend/public/favicon.svg` with
   `@vite-pwa/assets-generator` (`minimal-2023` preset, Night background):
   `pwa-192x192.png`, `pwa-512x512.png`, `maskable-icon-512x512.png` and
