@@ -4,6 +4,32 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project currently has no runtime releases, so entries are dated by change.
 
+## [2026-11-26]
+
+### Added
+- Dev HTTPS through a Caddy reverse proxy: a `proxy` service (`caddy:2.11.9`,
+  `infra/Caddyfile`, `tls internal`) serves `https://localhost` and, when
+  `PUBLIC_HOST` is set in the optional `infra/.env` (template
+  `infra/.env.example`), `https://<PUBLIC_HOST>` for phones on the LAN. `/api/*`
+  goes straight to the backend, everything else (including Vite HMR) to Vite;
+  `:80` redirects to HTTPS. The local certificate authority persists in the
+  `caddy-data` volume.
+- `pnpm dev-ca` copies Caddy's root certificate to the gitignored
+  `infra/dev-ca/root.crt`; `infra/README.md` describes trusting it on macOS,
+  iOS and Android. Installing the PWA on real phones is not yet verified.
+- Backend tests for uvicorn's proxy-header handling: forwarded HTTPS origins
+  pass the origin guard and the per-address sign-in throttle keys on
+  `X-Forwarded-For`.
+
+### Changed
+- The dev compose publishes the backend (`127.0.0.1:8080`) and Vite
+  (`127.0.0.1:5173`) on loopback only; the LAN reaches the stack only through
+  Caddy. `http://localhost:5173` keeps working on the host.
+- The dev backend runs uvicorn with `--proxy-headers --forwarded-allow-ips='*'`
+  (safe because only Caddy and the host can reach it), so the origin guard and
+  sign-in throttle see the client's scheme and address behind the proxy.
+- Vite accepts `PUBLIC_HOST` as an allowed host when it is set.
+
 ## [2026-11-23]
 
 ### Added

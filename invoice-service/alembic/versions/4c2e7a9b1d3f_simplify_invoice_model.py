@@ -60,7 +60,8 @@ def upgrade() -> None:
         "WHERE status IN ('needs_attention', 'pending_review')"
     )
 
-#test comment
+
+# test comment
 def downgrade() -> None:
     with op.batch_alter_table("invoices") as batch:
         for name in AMOUNT_FIELDS:
