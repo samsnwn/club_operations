@@ -52,8 +52,14 @@ system font.
 - `src/App.tsx` — session check (checking → offline screen or router) and the
   session state (user, sign-out) shared with the routes through
   `src/session.ts`.
-- `src/router.tsx` — the route tree and every access guard, defined in code
-  with TanStack Router (no file-based routing, no generated tree).
+- `src/routes/` — one file per route (TanStack Router file-based routing),
+  each with its own guard in `beforeLoad`; `__root.tsx` holds the not-found
+  page.
+- `src/routeTree.gen.ts` — the route tree, generated from `src/routes/` by the
+  TanStack Router Vite plugin. It is committed, never edited by hand, and
+  excluded from Prettier and ESLint.
+- `src/router.tsx` — creates the router from the generated tree (router
+  context, not-found mode, type registration).
 - `src/redirect.ts` — `safeRedirect`, the dependency-free validator for the
   `?redirect=` value after sign-in.
 - `src/AppShell.tsx` — signed-in layout: forced password change, or the header,
@@ -84,7 +90,7 @@ system font.
 | `/account/password` | Signed in           | Change password; a successful change returns to `/`            |
 | any other path      | Anyone              | Not-found page with a link to `/`                              |
 
-Redirect rules (all in `src/router.tsx`, `beforeLoad`, with `replace` so the
+Redirect rules (in the route files' `beforeLoad`, with `replace` so the
 back gesture never lands on a redirecting entry):
 
 - Signed out on any signed-in route → `/login?redirect=<path and query>`.
@@ -95,6 +101,15 @@ back gesture never lands on a redirecting entry):
   such as `/..//host`) are accepted, so `?redirect=` can't send anyone to
   another site.
 - Sign out → `/login` with no `redirect`.
+
+Adding a route: create a file under `src/routes/` (for example
+`src/routes/_authenticated/_manager/reports.tsx` for an owner/admin page at
+`/reports`) exporting `Route = createFileRoute(...)`. Files in
+`_authenticated/` require a signed-in user and render inside the shell; files
+in `_authenticated/_manager/` are owner/admin only; `staticData` sets the page
+heading. `pnpm run dev` or `pnpm run build` regenerates
+`src/routeTree.gen.ts` (the plugin fills in the `createFileRoute` path); commit
+it with the route.
 
 Check the validator with Node (no test runner; run from `frontend/`):
 
@@ -114,7 +129,7 @@ desktop widths. Fonts are bundled via Fontsource; do not add a font CDN.
 
 ## Access behaviour
 
-- Access is enforced by URL guards in `src/router.tsx` (see Routes), which
+- Access is enforced by URL guards in `src/routes/` (see Routes), which
   re-run whenever the signed-in user changes.
 - `owner` and `admin` see the invoice workspace and staff panel.
 - `staff` can sign in and change their own password only; they land on
