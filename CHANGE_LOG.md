@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 
 ## [2026-11-27]
 
+### Changed
+- The factory trusts only its operator: `factory/bin/job` refuses to create a
+  job for an issue someone else opened (the queue lists it as `skip`), drops
+  every comment not written by the operator from `issue.md`, and resumes a
+  `needs-info` job only on the operator's reply. Before, the issue's author
+  was trusted too, which on a public repository could be anyone.
+
 ### Planning
 - The product plan moved from `README.md` to a gitignored `PLAN.md` ahead of
   making the repository public; it stays in the main checkout only.

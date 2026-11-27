@@ -141,6 +141,10 @@ Each job works in its own git worktree, a full checkout of the repo at
 checkout's gitignored `PLAN.md` into each new worktree so agents can read the plan. A tool run from the repo root that doesn't
 read `.gitignore` sees those copies too; exclude `.worktrees/` in its config.
 
+The factory builds only issues opened by the GitHub user running it, and
+passes only that user's comments to its agents; issues and comments from
+anyone else are ignored (the repository is public).
+
 The developer running `/factory run` (or `/factory run <n>`) is the explicit
 go-ahead hard rule 2 asks for, scoped to the factory: its agents may commit to
 and push only their own `factory/<job-id>` branch and open a PR for it, and
