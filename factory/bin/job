@@ -190,10 +190,17 @@ def fetch_issue(number):
                    "number,title,body,author,labels,state,url,comments")
 
 
+def from_operator(issue):
+    """The factory builds only issues the operator opened (the repo is public)."""
+    return issue["author"]["login"] == operator()
+
+
 def write_issue_md(job):
     issue = fetch_issue(job["issue"])
     author = issue["author"]["login"]
-    trusted = {author, operator()}
+    require(from_operator(issue), f"issue #{issue['number']} was opened by @{author}, not @{operator()}")
+    # Only the operator's comments reach the agents; anyone else's are dropped.
+    trusted = {operator()}
     lines = [
         f"# Issue #{issue['number']}: {issue['title']}",
         "",
@@ -219,13 +226,13 @@ def write_issue_md(job):
 
 
 def replied_since_question(issue):
-    """True when the author or operator commented after the factory's last comment."""
+    """True when the operator commented after the factory's last comment."""
     last_factory = None
     replied = False
     for c in issue["comments"]:
         if c["body"].startswith(MARKER):
             last_factory, replied = c["createdAt"], False
-        elif last_factory and c["author"]["login"] in {issue["author"]["login"], operator()}:
+        elif last_factory and c["author"]["login"] == operator():
             replied = True
     return replied
 
@@ -531,6 +538,9 @@ def cmd_create(number):
         die(f"issue #{number} is {issue['state'].lower()}")
     if LABELS["queue"] not in {l["name"] for l in issue["labels"]}:
         die(f"issue #{number} isn't labeled {LABELS['queue']}")
+    if not from_operator(issue):
+        die(f"issue #{number} was opened by @{issue['author']['login']}; the factory only builds "
+            f"issues opened by @{operator()}. Open your own issue with the parts you accept.")
     JOBS.mkdir(parents=True, exist_ok=True)
     numbers = [int(p.name.split("-")[0]) for p in JOBS.iterdir() if p.name[:3].isdigit()]
     job_id = f"{max(numbers, default=0) + 1:03d}-{slugify(issue['title'])}"
@@ -558,19 +568,21 @@ def cmd_queue():
         if j["stage"] not in TERMINAL and j["pr"] and pr_state(j) == "MERGED":
             save(advance(sync(j), "merged"))
     issues = gh_json("issue", "list", "--label", LABELS["queue"], "--state", "open",
-                     "--limit", "200", "--json", "number,title")
+                     "--limit", "200", "--json", "number,title,author")
     open_numbers = {i["number"] for i in issues}
     running_rows, replied_rows, new_rows, other_rows = [], [], [], []
     for issue in sorted(issues, key=lambda i: i["number"]):
         n = issue["number"]
         j = jobs.get(n)
-        if not j:
+        if not j and issue["author"]["login"] != operator():
+            other_rows.append(("skip", n, "-", "-", f"opened by @{issue['author']['login']}, not you"))
+        elif not j:
             new_rows.append(("new", n, "-", "-", issue["title"]))
         elif j["stage"] == "needs-info":
             if replied_since_question(fetch_issue(n)):
-                replied_rows.append(("resume", n, j["id"], j["stage"], "author replied"))
+                replied_rows.append(("resume", n, j["id"], j["stage"], "you replied"))
             else:
-                other_rows.append(("wait", n, j["id"], j["stage"], "waiting for the author"))
+                other_rows.append(("wait", n, j["id"], j["stage"], "waiting for your reply"))
         elif j["stage"] == "needs-human":
             other_rows.append(("wait", n, j["id"], j["stage"], f"merge PR #{j['pr']}, or give feedback"
                                if j["pr"] else "give feedback"))

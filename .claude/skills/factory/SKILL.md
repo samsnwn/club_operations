@@ -101,7 +101,7 @@ decision:
 - `ACCEPT`: run `factory/bin/route <id>`, then `factory/bin/job advance <id> spec`
   (it comments on the issue and creates the worktree). Go to **spec**.
 - `NEEDS-INFO`: `factory/bin/job advance <id> needs-info`. The job parks until
-  the author replies.
+  the operator (you) replies on the issue.
 - `REJECT`: `factory/bin/job advance <id> rejected`.
 
 **spec.** Spawn `spec-writer` with `<header>`. When it returns,
