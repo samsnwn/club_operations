@@ -404,6 +404,10 @@ def advance(job, stage):
             run(["git", "fetch", "origin", BASE])
             Path(job["worktree"]).parent.mkdir(parents=True, exist_ok=True)
             run(["git", "worktree", "add", "-b", job["branch"], job["worktree"], f"origin/{BASE}"])
+            # The product plan is gitignored (public repo); give the job a link to it.
+            plan = REPO / "PLAN.md"
+            if plan.exists():
+                (Path(job["worktree"]) / "PLAN.md").symlink_to(plan)
 
     elif old == "needs-info":
         require_slot(job["id"])
