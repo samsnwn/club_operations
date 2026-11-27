@@ -1,17 +1,17 @@
 # Phase 0.5 — Invoice Ingestion service
 
-Independent service implementing the plan in `README.md` §Phase 0.5:
+Independent service implementing the plan in `PLAN.md` §Phase 0.5:
 **ingest (the owner's Google Drive invoice folder) → extract (Tesseract
 OCR for photos/scans, text layer for PDFs) → review queue → Google Sheets API
 as an append-only output artifact.**
 
-Stands on the owner's recorded answers (README §Phase 0.5, "Owner answers
-(working assumptions)"): a single Google Drive invoice folder as the only
-source (no email ingestion — owner decision 2026-11-23), local OCR only, owner and admin reviewers, digest email with review instructions. Credit-note handling is
-still an open question — corrections go through the review queue only.
+Scope: a single Google Drive invoice folder as the only source (no email
+ingestion in Phase 0.5), local OCR only, owner and admin accounts as
+reviewers, and a digest email with review instructions. Credit-note handling
+is still an open question — corrections go through the review queue only.
 
-**Interim hosting (plan A):** until the dedicated club hardware exists, the
-service runs on demand. Ingestion is pull-based:
+**Interim hosting:** until dedicated hardware exists, the service runs on
+demand. Ingestion is pull-based:
 the invoice folder buffers everything, and each import lists the whole folder
 and takes every file not imported yet. A quiet period produces one collapsed
 digest email instead of daily silence-breaking ones.
@@ -22,7 +22,7 @@ digest email instead of daily silence-breaking ones.
 | --- | --- |
 | Invoice folder (Google Drive) ingestion | **Working** — read-only service account; PDF/JPEG/PNG/WebP directly in the folder; known files skipped by MD5 before download; files stay in place. Not yet verified against a real Drive folder |
 | Local inbox (`data/inbox/`, development) | **Working** — settle detection, size/page limits, content-hash dedupe; used when Drive is not configured |
-| Email ingestion | **Not planned for Phase 0.5** (owner decision 2026-11-23) |
+| Email ingestion | **Not planned for Phase 0.5** |
 | Text/OCR extraction + field suggestions | **Working** — PDF text layer, UTF-8 text, local Tesseract; generic regex fields; `needs_attention` when a required field is not suggested |
 | Review queue (list/detail/confirm/reject, attribution) | **Working** |
 | Scheduled catch-up run | **Not started** — nothing periodic runs; import is triggered manually |

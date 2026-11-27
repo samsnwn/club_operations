@@ -5,7 +5,7 @@ Run in development:
     INVOICE_ENVIRONMENT=development uv run uvicorn app.main:app --reload --port 8081
 
 Versioned REST API under `/api/v1/` (same convention as the main backend) so
-Phase 1 can integrate the service instead of replacing it (README §Phase 0.5).
+Phase 1 can integrate the service instead of replacing it (PLAN.md §Phase 0.5).
 """
 
 import logging

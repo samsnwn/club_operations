@@ -1,4 +1,4 @@
-"""Review queue API (README §Phase 0.5): list open invoices, inspect one with
+"""Review queue API (PLAN.md §Phase 0.5): list open invoices, inspect one with
 its suggestions, confirm/correct/reject. Auth: the backend facade
 authenticates the user and forwards the username in `X-Reviewer`; that header
 is only trusted together with the internal service token. There is no second

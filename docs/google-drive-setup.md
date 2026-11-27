@@ -22,7 +22,7 @@ the Google Cloud project and the service account.
   and anything else the platform connects to.
 
 None of this costs money: a free Google account is enough, and the Drive API
-is free at the club's volume (a club's invoice volume). No billing account
+is free at a club's invoice volume. No billing account
 is needed.
 
 ## What you need

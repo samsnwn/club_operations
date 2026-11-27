@@ -16,3 +16,6 @@ node_modules/
 
 # Dev HTTPS root certificate exported by `pnpm dev-ca` (per machine)
 infra/dev-ca/
+
+# Product plan: business context, kept local while the repository is public
+/PLAN.md

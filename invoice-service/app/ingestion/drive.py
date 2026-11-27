@@ -1,5 +1,5 @@
 """The invoice folder: the shared Google Drive folder the owner uploads
-invoices to (README §Phase 0.5, owner answer #2 revised 2026-11-23).
+invoices to (PLAN.md §Phase 0.5, owner answer #2 revised 2026-11-23).
 
 Read-only by design: a service account the owner shares the folder with lists
 it and downloads new files. Files stay in the folder as the owner's archive;

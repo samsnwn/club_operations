@@ -63,9 +63,9 @@ In this project, also ESCALATE when the change:
 - adds or changes fixtures, sample files or test data that could be real club,
   supplier or invoice data (hard rule 4);
 - changes the Docker Compose stack, exposed ports or environment defaults;
-- goes beyond the current phase in `README.md` (hard rule 8), or describes a
+- goes beyond the current phase in `PLAN.md` (hard rule 8), or describes a
   stub as delivered in docs or UI copy;
-- changes `README.md`, `AGENTS.md` hard rules or the product plan in `docs/`.
+- changes `PLAN.md`, `AGENTS.md` hard rules or the product plan in `docs/`.
 
 ## Write decision.md
 

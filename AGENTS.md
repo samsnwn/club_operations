@@ -6,7 +6,7 @@ Instructions for AI coding agents working in this repository.
 
 A self-hosted **Club Operations Platform** for a nightclub: management dashboard, staff mobile interface and promoter submission form, built as one responsive PWA with a local-first backend (FastAPI + SQLite) and a later-read-only local AI assistant.
 
-The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs/architecture.md`](docs/architecture.md), [`docs/design-system.md`](docs/design-system.md), [`docs/milestones.md`](docs/milestones.md), [`docs/next-steps.md`](docs/next-steps.md), [`docs/google-drive-setup.md`](docs/google-drive-setup.md). Current stage: [`STATUS.md`](STATUS.md). History: [`CHANGE_LOG.md`](CHANGE_LOG.md).
+The full product plan lives in [`PLAN.md`](PLAN.md), which is **gitignored and exists only in the main checkout** (the repository is public; the plan holds the club's business context). If it is missing, say so rather than guessing at product scope. [`README.md`](README.md) is the public developer guide (setup and running). Supporting docs: [`docs/architecture.md`](docs/architecture.md), [`docs/design-system.md`](docs/design-system.md), [`docs/milestones.md`](docs/milestones.md), [`docs/next-steps.md`](docs/next-steps.md), [`docs/google-drive-setup.md`](docs/google-drive-setup.md). Current stage: [`STATUS.md`](STATUS.md). History: [`CHANGE_LOG.md`](CHANGE_LOG.md).
 
 ## Current stage — read before writing code
 
@@ -14,7 +14,7 @@ The full product plan lives in [`README.md`](README.md). Supporting docs: [`docs
 - **Delivered vs. not delivered.** Import from the owner's Google Drive invoice folder (read-only service account; the local inbox `data/inbox/` stands in when Drive is not configured), extraction, review (confirm/correct/reject) and reviewer attribution are implemented; Drive import has not yet been verified against a real folder. **Email ingestion is not planned for Phase 0.5** (owner decision 2026-11-23), **the scheduled catch-up run is not started**, and **the Google Sheets export is a stub** (feature-flagged off; raises when enabled). The digest email can be built but is never sent automatically. Never describe these as delivered in docs or UI copy.
 - **Domain language.** Invoice-ingestion terms (capture, suggestion, required fields, needs attention, open, classification) are defined in [`GLOSSARY.md`](GLOSSARY.md); use them in code and docs.
 - **Invoice-service auth.** A single internal token (constant-time comparison) plus `X-Reviewer` is the only credential path; the legacy per-user token fallback is removed. The service refuses the known development token outside `INVOICE_ENVIRONMENT=development`, and its dev port is loopback-only. Production must use a unique token and keep `:8081` internal.
-- The **Phase 0.5 Invoice Ingestion Quick Win** (README §Phase 0.5) is prioritised ahead of Phase 1 by the club owner. Most owner answers are recorded as working assumptions; **credit-note handling and the real sheet's exact tabs/columns/formula columns remain open**. Do not write to the real accounting sheet until that mapping is confirmed (hard rule 3).
+- The **Phase 0.5 Invoice Ingestion Quick Win** (PLAN.md §Phase 0.5) is prioritised ahead of Phase 1 by the club owner. Most owner answers are recorded as working assumptions; **credit-note handling and the real sheet's exact tabs/columns/formula columns remain open**. Do not write to the real accounting sheet until that mapping is confirmed (hard rule 3).
 - When you add capabilities or change what works, update `docs/next-steps.md`, `STATUS.md` and `CHANGE_LOG.md` in the same change so agent-readable state is never stale. Keep STATUS honest about stubs and pending manual verification.
 
 ## Planned stack (do not deviate without discussion)
@@ -36,7 +36,8 @@ infra/      Docker Compose dev stack (Caddy dev HTTPS :443, loopback-only backen
 factory/    software factory: checks.sh, config, job/gate/route scripts, dashboard (jobs/ is gitignored runtime state)
 .claude/    factory orchestrator skill and agents
 docs/       architecture, design system, milestones, next steps
-README.md   full project plan (single source of product truth)
+README.md   developer guide: what the app is, how to run and test it
+PLAN.md     full project plan (single source of product truth; gitignored, local only)
 GLOSSARY.md domain language (invoice ingestion so far)
 AGENTS.md   this file — conventions and guardrails for agents
 STATUS.md   current project status snapshot
@@ -123,7 +124,7 @@ pnpm format:check    # verify formatting (same check CI runs; Prettier + ruff)
 
 - **Language:** user-facing and planning text in English; keep the plan's spelling style (British: "organise", "centralise").
 - **Line endings:** LF, UTF-8. Terminate files with a newline.
-- **Docs:** keep the README's section-numbering scheme intact when editing the plan; table-of-contents consistency matters because other docs reference sections (e.g. "4.9 Documents").
+- **Docs:** keep `PLAN.md`'s section-numbering scheme intact when editing the plan; table-of-contents consistency matters because other docs reference sections (e.g. "4.9 Documents").
 - **Git:** small, focused commits; imperative subject lines ("Add invoice review queue"); planning-doc changes in commits separate from code changes.
 - **API:** everything backend-facing goes under `/api/v1/`; schemas defined once in Pydantic, never duplicated in the frontend by hand.
 
@@ -136,7 +137,8 @@ intake → spec → build → gate → review → approve, one PR per issue. Sta
 open http://localhost:8000/dashboard.html.
 
 Each job works in its own git worktree, a full checkout of the repo at
-`.worktrees/<job-id>` (gitignored). A tool run from the repo root that doesn't
+`.worktrees/<job-id>` (gitignored). `factory/bin/job` symlinks the main
+checkout's gitignored `PLAN.md` into each new worktree so agents can read the plan. A tool run from the repo root that doesn't
 read `.gitignore` sees those copies too; exclude `.worktrees/` in its config.
 
 The developer running `/factory run` (or `/factory run <n>`) is the explicit
@@ -158,6 +160,6 @@ approves. Outside a factory job, hard rule 2 applies unchanged.
 
 ## Verification before declaring work done
 
-- Planning/docs edits: check internal links between AGENTS.md, STATUS.md, CHANGE_LOG.md, README and docs/; confirm referenced section numbers exist in README.
+- Planning/docs edits: check internal links between AGENTS.md, STATUS.md, CHANGE_LOG.md, README, PLAN.md and docs/; confirm referenced section numbers exist in PLAN.md. Keep product-plan content out of README.md, which is public.
 - Code (once it exists): backend endpoints reachable and honoured by tests; frontend builds; `git status` clean of unintended files (especially data files/env files).
 - Update `CHANGE_LOG.md` with every meaningful change; refresh `STATUS.md` when the stage or next step changes.

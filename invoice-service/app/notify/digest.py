@@ -1,5 +1,5 @@
 """Digest notifications (owner answer #8): an email with instructions on what
-needs attention. Collapsed by design (interim plan A): one digest covers
+needs attention. Collapsed by design (interim on-demand hosting): one digest covers
 every open invoice, so a machine that was off for days
 produces a single email, not a backlog of them.
 """

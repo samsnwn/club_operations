@@ -28,8 +28,8 @@ that, scoped so it can land as one small pull request.
 ## Decide
 
 This project is a self-hosted club operations platform for one nightclub; the
-current phase is the Phase 0.5 invoice ingestion quick win (README §Phase 0.5),
-so work outside that phase or outside the plan in `README.md` doesn't belong
+current phase is the Phase 0.5 invoice ingestion quick win (PLAN.md §Phase 0.5),
+so work outside that phase or outside the plan in `PLAN.md` doesn't belong
 yet (AGENTS.md hard rule 8).
 
 - **ACCEPT** when the request is clear, fits the project, and can be built and

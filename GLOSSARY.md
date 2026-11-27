@@ -1,7 +1,7 @@
 # Blue Velvet Club Operations
 
 Shared language for the club's operations platform. Only the invoice-ingestion
-quick win (README §Phase 0.5) is defined so far.
+quick win (PLAN.md §Phase 0.5) is defined so far.
 
 ## Invoice ingestion
 

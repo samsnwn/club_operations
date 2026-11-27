@@ -1,5 +1,5 @@
 """Field extraction: turns a document's text layer into suggestions
-(README §Phase 0.5). Generic regexes for now; supplier-specific templates
+(PLAN.md §Phase 0.5). Generic regexes for now; supplier-specific templates
 arrive per supplier as real data lands.
 
 Document contents are untrusted input (hard rule 7): defensive, bounded

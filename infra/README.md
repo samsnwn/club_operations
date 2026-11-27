@@ -1,6 +1,6 @@
 # Infra — how the Blue Velvet platform is deployed
 
-Everything is self-hosted on club infrastructure (README §technical architecture).
+Everything is self-hosted on club infrastructure (PLAN.md §5 Technical Architecture).
 This directory owns Docker Compose definitions for both development and, later,
 production.
 
@@ -213,7 +213,7 @@ deactivate unknown accounts in the Staff tab (deactivation revokes their
 sessions), review the account list for owners you did not create, and rotate
 `INVOICE_SERVICE_TOKEN` / `INVOICE_INTERNAL_TOKEN` if host access is in doubt.
 
-Open decisions, gated on the Phase 0 owner answers (README §Phase 0):
+Open decisions, gated on the Phase 0 owner answers (PLAN.md §Phase 0):
 
 - Host runtime: Docker Desktop vs Linux daemon on club hardware (affects the
   production compose details only).
@@ -223,6 +223,6 @@ Open decisions, gated on the Phase 0 owner answers (README §Phase 0):
   it already runs as its own container in development, but production must not
   publish `:8081`, and the scheduler/single-run lock still needs a home.
 - Whether a scheduled worker container runs the nightly invoice catch-up and
-  digest, or an import is triggered manually (interim plan A).
+  digest, or an import is triggered manually (interim).
 - File-storage volume layout for uploaded documents (invoices, riders) once
   document workflow arrives.

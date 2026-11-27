@@ -197,7 +197,7 @@ Invoice date") rather than a confidence score. Extraction output is always a
 
 ## 8. Platform and accessibility
 
-- **Mobile first for staff screens** (README §2), desktop first for the
+- **Mobile first for staff screens** (PLAN.md §2), desktop first for the
   management dashboard; both use the same tokens.
 - Touch targets ≥ 44px. Inputs use 16px text. Respect safe-area insets.
 - Visible focus ring on every interactive element (`:focus-visible`).

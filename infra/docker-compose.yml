@@ -102,7 +102,7 @@ services:
 
   proxy:
     # Dev HTTPS on :443 (:80 redirects) for https://localhost and
-    # https://<PUBLIC_HOST>; see Caddyfile and README.md "HTTPS for phones".
+    # https://<PUBLIC_HOST>; see Caddyfile and infra/README.md "HTTPS for phones".
     image: caddy:2.11.9
     ports:
       - "80:80"
