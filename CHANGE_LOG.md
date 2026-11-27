@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 ## [2026-11-27]
 
 ### Changed
+- The repository is public. History was rewritten first (old plan README
+  and personal author email removed, club operational details scrubbed),
+  and GitHub secret scanning, push protection and Dependabot are enabled.
+  The old pull requests still hold the pre-rewrite commits (accepted).
 - The factory trusts only its operator: `factory/bin/job` refuses to create a
   job for an issue someone else opened (the queue lists it as `skip`), drops
   every comment not written by the operator from `issue.md`, and resumes a
